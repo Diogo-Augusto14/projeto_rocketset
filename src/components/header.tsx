@@ -10,10 +10,10 @@ export const Header = () => {
 
   return (
     <header
-      className="fixed top-0 z-50 w-full border-b border-border bg-cyan-100 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      className="border-b bg-gray-500"
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+      <div className="flex h-full items-center justify-center">
+        <div className="flex h-auto items-center justify-between">
           <Logo />
           
           <nav className="flex items-center gap-6">
