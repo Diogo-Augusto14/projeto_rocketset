@@ -10,7 +10,7 @@ export const Header = () => {
 
   return (
     <header
-      className="border-b bg-gray-500"
+      className=" bg-gradient-to-t from-vermelho-200 via-vermelho-300 to-vermelho-600"
     >
       <div className="flex h-full items-center justify-center">
         <div className="flex h-auto items-center justify-between">

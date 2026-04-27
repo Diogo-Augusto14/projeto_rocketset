@@ -1,74 +1,85 @@
-import type { Config } from 'tailwindcss';
+import type { Config } from "tailwindcss";
 
 export default {
-  darkMode: ['class'],
+  darkMode: ["class"],
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     container: {
       center: true,
-      padding: '2rem',
+      padding: "2rem",
       screens: {
-        '2xl': '1200px',
+        "2xl": "1200px",
       },
     },
     extend: {
       colors: {
-        white: '#FFFFFF',
+        white: "#FFFFFF",
         blue: {
-          100: '#7EA4D7',
-          200: '#2C85FC',
-          300: '#2266C1',
-          400: '#0D284C',
+          100: "#7EA4D7",
+          200: "#2C85FC",
+          300: "#2266C1",
+          400: "#0D284C",
         },
         cyan: {
-          100: '#2DEBFC',
-          200: '#187D86',
-          300: '#0E474C',
+          100: "#2DEBFC",
+          200: "#187D86",
+          300: "#0E474C",
         },
         gray: {
-          100: '#F9FAFC',
-          200: '#D3D5D9',
-          300: '#93979F',
-          400: '#20242C',
-          500: '#16181D',
-          600: '#14161A',
-          700: '#101216',
-          800: '#0B0C0F',
+          100: "#F9FAFC",
+          200: "#D3D5D9",
+          300: "#93979F",
+          400: "#20242C",
+          500: "#16181D",
+          600: "#14161A",
+          700: "#101216",
+          800: "#0B0C0F",
+        },
+        vermelho: {
+          100:"#f0d7d7",
+          200:"#da4040",
+          300:"#d12828",
+          400:"#a03030",
+          500:"#851c1c",
+          600:"#880606",
+          700:"#720505",
+          800:"#220101",
+          
         },
       },
       borderRadius: {
-        lg: '0.5rem',
-        md: 'calc(0.5rem - 2px)',
-        sm: 'calc(0.5rem - 4px)',
+        lg: "0.5rem",
+        md: "calc(0.5rem - 2px)",
+        sm: "calc(0.5rem - 4px)",
       },
       fontFamily: {
-        sans: ['PT Sans Caption', 'sans-serif'],
-        inter: ['Inter', 'sans-serif'],
+        sans: ["PT Sans Caption", "sans-serif"],
+        inter: ["Inter", "sans-serif"],
       },
       fontSize: {
         // Headings - PT Sans Caption
-        'heading-hg': ['40px', { lineHeight: '120%', fontWeight: '700' }],
-        'heading-xl': ['32px', { lineHeight: '120%', fontWeight: '700' }],
-        'heading-lg': ['28px', { lineHeight: '120%', fontWeight: '700' }],
-        'heading-md': ['24px', { lineHeight: '120%', fontWeight: '700' }],
-        'heading-sm': ['20px', { lineHeight: '120%', fontWeight: '700' }],
-        'heading-xs': ['16px', { lineHeight: '120%', fontWeight: '700' }],
+        "heading-hg": ["40px", { lineHeight: "120%", fontWeight: "700" }],
+        "heading-xl": ["32px", { lineHeight: "120%", fontWeight: "700" }],
+        "heading-lg": ["28px", { lineHeight: "120%", fontWeight: "700" }],
+        "heading-md": ["24px", { lineHeight: "120%", fontWeight: "700" }],
+        "heading-sm": ["20px", { lineHeight: "120%", fontWeight: "700" }],
+        "heading-xs": ["16px", { lineHeight: "120%", fontWeight: "700" }],
 
         // Body - Inter
-        'body-md': ['16px', { lineHeight: '150%', fontWeight: '400' }],
-        'body-sm': ['14px', { lineHeight: '150%', fontWeight: '400' }],
-        'body-xs': ['12px', { lineHeight: '150%', fontWeight: '400' }],
+        "body-md": ["16px", { lineHeight: "150%", fontWeight: "400" }],
+        "body-sm": ["14px", { lineHeight: "150%", fontWeight: "400" }],
+        "body-xs": ["12px", { lineHeight: "150%", fontWeight: "400" }],
 
         // Action - Inter
-        'action-md': ['16px', { lineHeight: 'normal', fontWeight: '500' }],
-        'action-sm': ['14px', { lineHeight: 'normal', fontWeight: '500' }],
+        "action-md": ["16px", { lineHeight: "normal", fontWeight: "500" }],
+        "action-sm": ["14px", { lineHeight: "normal", fontWeight: "500" }],
       },
     },
   },
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  plugins: [require('tailwindcss-animate')],
+  plugins: [require("tailwindcss-animate")],
 } satisfies Config;
