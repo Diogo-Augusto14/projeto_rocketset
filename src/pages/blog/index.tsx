@@ -5,10 +5,29 @@ export default function BlogIA() {
   return (
     <div>
       <HeroSection>
-        <div></div>
+        <div>
+          <div className="grid grid-cols-4 gap-1 text-white">
+            <div className="col-span-1"></div>
+            <div className="min-h-[10px] text-2xl flex flex-col items-center justify-center col-span-2 font-bold m-10 text-white backdrop-blur-md bg-cyan-100/20 p-8 rounded-3xl border border-cyan-200/20 shadow-2xl shadow-vermelho-500">
+              <strong className="ml-5 italic">
+                O Fim do Código, o Início da Arquitetura: O Novo Papel do Dev na
+                Era da IA
+              </strong>
+              <p className="ml-5 italic">
+                "A inteligência artificial não marca o fim da programação, mas o
+                início da era da engenharia de intenção. Deixamos de ser
+                operários da sintaxe, focados em linhas de código, para nos
+                tornarmos arquitetos de soluções, onde o progresso não é medido
+                pelo que digitamos, mas pela complexidade dos problemas que
+                somos capazes de resolver."
+              </p>
+            </div>
+            <div className="col-span-1"></div>
+          </div>
+        </div>
       </HeroSection>
 
-      <article className="max-w-[1200px] mx-auto py-20 px-6">
+      <article className="max-w-[1000px] mx-auto py-20 px-6">
         <h1 className="text-4xl font-bold mb-8 text-white">
           A Morte do "Digitador de Código" e a Ascensão do Engenheiro de
           Intenção
@@ -16,20 +35,20 @@ export default function BlogIA() {
 
         <section className="space-y-6 text-muted-foreground leading-relaxed">
           <div className="grid grid-cols-2 items-center text-white">
-            <div className="justify-items-end">
-              <p className="p-5 m-5 bg-white rounded-[30px] bg-gradient-to-b from-cyan-200 to-gray-600/50 shadow-2xl shadow-gray-800 max-w-[250px]">
+            <div>
+              <p className="p-5 m-5 bg-white rounded-[30px] bg-gradient-to-b from-cyan-200 to-gray-600/50 shadow-2xl shadow-gray-800">
                 "A IA é excelente em gerar respostas, mas o humano continua
                 sendo o único capaz de fazer as perguntas que realmente
                 importam."
               </p>
-              <p className="p-5 m-5 bg-white rounded-[30px] bg-gradient-to-b from-cyan-200 to-gray-600/50 shadow-2xl shadow-gray-800 max-w-[250px]">
+              <p className="p-5 m-5 bg-white rounded-[30px] bg-gradient-to-b from-cyan-200 to-gray-600/50 shadow-2xl shadow-gray-800">
                 Contudo, a programação nunca foi sobre digitar; foi sobre
                 resolver problemas de negócio ambíguos sob restrições reais —
                 algo onde a IA, presa a padrões do passado, ainda tropeça.
               </p>
             </div>
             <div>
-              <p className="p-5 m-5 bg-white rounded-[30px] bg-gradient-to-b from-cyan-200 to-gray-600/50 shadow-2xl shadow-gray-800 max-w-[219px]">
+              <p className="p-5 m-5 bg-white rounded-[30px] bg-gradient-to-b from-cyan-200 to-gray-600/50 shadow-2xl shadow-gray-800">
                 Estamos vivendo o fim da era da sintaxe. Ferramentas como Devin
                 e Copilot transformaram o ato de escrever código em uma{" "}
                 <strong>commodity</strong>. O que antes exigia domínio profundo
@@ -81,10 +100,10 @@ export default function BlogIA() {
             celular. Nenhum sistema probabilístico teria apostado numa interface
             puramente touchscreen para o mercado corporativo. Essa foi uma
             decisão humana, carregada de visão de produto, tolerância ao risco e
-            uma compreensão quase filosófica de como as pessoas <em>queriam</em>{" "}
-            se relacionar com a tecnologia — não de como elas <em>estavam</em>{" "}
-            se relacionando. Isso é o que a IA não faz: ela não enxerga o que
-            ainda não existe nos dados.
+            uma compreensão quase filosófica de como as pessoas{" "}
+            <em>queriam</em> se relacionar com a tecnologia — não de como elas{" "}
+            <em>estavam</em> se relacionando. Isso é o que a IA não faz: ela
+            não enxerga o que ainda não existe nos dados.
           </p>
 
           <p className="text-white/80">
@@ -185,20 +204,18 @@ export default function BlogIA() {
           </p>
 
           <p className="text-white/80">
-            <strong className="text-white">
-              Comunicação técnica de alto nível
-            </strong>{" "}
+            <strong className="text-white">Comunicação técnica de alto nível</strong>{" "}
             — a habilidade de traduzir objetivos de negócio em especificações
             técnicas precisas e vice-versa — também se tornará uma vantagem
             competitiva decisiva. Profissionais que conseguem sentar com o CEO e
             o CTO ao mesmo tempo, falar a língua de ambos e orquestrar a IA para
-            executar o que ambos precisam, terão um valor de mercado
-            exponencial.
+            executar o que ambos precisam, terão um valor de mercado exponencial.
           </p>
 
           <p className="text-white/80">
-            Por último, <strong className="text-white">visão de produto</strong>{" "}
-            — a capacidade de entender o usuário final, antecipar suas dores e
+            Por último,{" "}
+            <strong className="text-white">visão de produto</strong> — a
+            capacidade de entender o usuário final, antecipar suas dores e
             desenhar experiências que resolvam problemas reais antes mesmo de
             serem articulados — permanece exclusivamente humana. Dados de
             comportamento podem informar, mas não inspirar. A empatia não é um
@@ -219,13 +236,12 @@ export default function BlogIA() {
 
           <p className="text-white/80">
             Existe um risco sombrio no horizonte que poucos estão discutindo com
-            a seriedade necessária: o paradoxo da produtividade gerada por IA. À
-            medida que geramos mais código em menos tempo, corremos o risco de
+            a seriedade necessária: o paradoxo da produtividade gerada por IA.
+            À medida que geramos mais código em menos tempo, corremos o risco de
             construir sistemas que ninguém compreende completamente. Bases de
-            código que crescem mais rápido do que a capacidade humana de
-            auditá-las. Arquiteturas que funcionam, mas cujo raciocínio interno
-            é opaco — um reflexo da própria opacidade dos modelos que as
-            geraram.
+            código que crescem mais rápido do que a capacidade humana de auditá-las.
+            Arquiteturas que funcionam, mas cujo raciocínio interno é opaco — um
+            reflexo da própria opacidade dos modelos que as geraram.
           </p>
 
           <p className="text-white/80">
@@ -236,8 +252,8 @@ export default function BlogIA() {
             infraestrutura de software de uma empresa. O desenvolvedor do futuro
             precisará ser, antes de tudo, um{" "}
             <strong className="text-white">guardião da legibilidade</strong> —
-            alguém que impõe ordem semântica e documentação de intenção sobre um
-            output que, deixado à própria sorte, tende ao caos estrutural.
+            alguém que impõe ordem semântica e documentação de intenção sobre
+            um output que, deixado à própria sorte, tende ao caos estrutural.
           </p>
 
           <p className="text-white/80">
@@ -257,35 +273,33 @@ export default function BlogIA() {
           <div className="grid grid-cols-2 items-start gap-4 text-white my-6">
             <div>
               <p className="p-5 bg-white rounded-[30px] bg-gradient-to-b from-cyan-200 to-gray-600/50 shadow-2xl shadow-gray-800">
-                <strong>Perfis em risco de substituição:</strong>{" "}
-                Desenvolvedores que atuam como tradutores de requisitos em
-                código, sem agregar visão crítica. Profissionais que se recusam
-                a incorporar IA no fluxo de trabalho por apego à identidade de
-                "quem escreve código". Especialistas em tecnologias de nicho sem
-                capacidade de abstração para novos paradigmas.
+                <strong>Perfis em risco de substituição:</strong> Desenvolvedores
+                que atuam como tradutores de requisitos em código, sem agregar
+                visão crítica. Profissionais que se recusam a incorporar IA no
+                fluxo de trabalho por apego à identidade de "quem escreve
+                código". Especialistas em tecnologias de nicho sem capacidade
+                de abstração para novos paradigmas.
               </p>
             </div>
             <div>
               <p className="p-5 bg-white rounded-[30px] bg-gradient-to-b from-cyan-200 to-gray-600/50 shadow-2xl shadow-gray-800">
                 <strong>Perfis com valorização exponencial:</strong> Arquitetos
-                de sistemas que entendem tanto o negócio quanto a
-                infraestrutura. Engenheiros com forte senso crítico para revisão
-                e auditoria de código gerado por IA. Profissionais que combinam
-                habilidades técnicas com comunicação estratégica e visão de
-                produto.
+                de sistemas que entendem tanto o negócio quanto a infraestrutura.
+                Engenheiros com forte senso crítico para revisão e auditoria de
+                código gerado por IA. Profissionais que combinam habilidades
+                técnicas com comunicação estratégica e visão de produto.
               </p>
             </div>
           </div>
 
           <p className="text-white/80">
-            A transição não será suave para todos. Historicamente, toda
-            revolução tecnológica cria mais empregos do que destrói — mas os
-            empregos criados raramente exigem as mesmas habilidades dos empregos
+            A transição não será suave para todos. Historicamente, toda revolução
+            tecnológica cria mais empregos do que destrói — mas os empregos
+            criados raramente exigem as mesmas habilidades dos empregos
             destruídos. O tecelão manual não se tornou operador de tear mecânico
             da noite para o dia. A diferença é que, desta vez, a velocidade da
-            transição é ordens de magnitude mais rápida. O ciclo de
-            obsolescência de habilidades que antes levava décadas agora leva
-            anos.
+            transição é ordens de magnitude mais rápida. O ciclo de obsolescência
+            de habilidades que antes levava décadas agora leva anos.
           </p>
 
           <p className="text-white/80">
@@ -316,11 +330,11 @@ export default function BlogIA() {
             Diante de tudo isso, o que fazer de forma concreta? Primeiro,
             incorpore ferramentas de IA ao seu fluxo de trabalho imediatamente —
             não como uma ameaça a ser tolerada, mas como um par de programação
-            disponível 24 horas por dia. Aprenda a escrever prompts com precisão
-            técnica. Documente suas intenções antes de codificar. Pratique o
-            hábito de revisar criticamente todo output gerado por IA, assim como
-            revisaria o código de um desenvolvedor júnior talentoso mas que
-            ainda comete erros de contexto.
+            disponível 24 horas por dia. Aprenda a escrever prompts com
+            precisão técnica. Documente suas intenções antes de codificar.
+            Pratique o hábito de revisar criticamente todo output gerado por IA,
+            assim como revisaria o código de um desenvolvedor júnior talentoso
+            mas que ainda comete erros de contexto.
           </p>
 
           <p className="text-white/80">
@@ -335,12 +349,12 @@ export default function BlogIA() {
           <p className="text-white/80">
             Terceiro, cultive perspectiva interdisciplinar. Os maiores saltos
             tecnológicos da história vieram de pessoas capazes de conectar
-            domínios distintos: Shannon aplicou álgebra booleana às
-            comunicações, Jobs trouxe caligrafia ao design de interfaces,
-            Berners-Lee aplicou o conceito de hipertexto à rede global. A
-            especialização profunda ainda importa, mas ela precisa coexistir com
-            uma curiosidade genuinamente ampla sobre como o mundo funciona além
-            da tela do seu editor de código.
+            domínios distintos: Shannon aplicou álgebra booleana às comunicações,
+            Jobs trouxe caligrafia ao design de interfaces, Berners-Lee aplicou
+            o conceito de hipertexto à rede global. A especialização profunda
+            ainda importa, mas ela precisa coexistir com uma curiosidade
+            genuinamente ampla sobre como o mundo funciona além da tela do seu
+            editor de código.
           </p>
 
           <p className="text-sm pt-10 border-t border-white/10">
