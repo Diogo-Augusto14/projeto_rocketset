@@ -4,3 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Força o fundo escuro em toda a aplicação para evitar o branco do Shadcn */
+@layer base {
+  body {
+   background-image: linear-gradient(#103669, #2DEBFC);
+  }
+}

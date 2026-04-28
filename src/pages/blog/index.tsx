@@ -1,116 +1,101 @@
 import { HeroSection } from "@/components/Hero/hero";
 import { Layout } from "@/components/layout/layout";
 
-export default function Blog() {
+export default function BlogIA() {
   return (
     <div>
       <HeroSection>
         <div>
-          <div className="grid grid-cols-4 gap-1 text-white items-center">
-            {" "}
-            {/* Adicionei items-start para não esticarem verticalmente */}
-            {/* Espaçador inicial (opcional, se quiser centralizar os blocos) */}
+          <div className="grid grid-cols-4 gap-1 text-white">
             <div className="col-span-1"></div>
-            {/* Bloco 1: Ocupa 2 colunas (Maior) */}
-            <div className="text-2xl font-bold m-1 text-white col-span-1 backdrop-blur-md bg-cyan-100/20 p-8 rounded-3xl border border-cyan-200/20 shadow-2xl">
-              <p className="m-5">
-                O impacto de Neymar na Seleção Brasileira é gigantesco e divide
-                opiniões, mas os números são incontestáveis. Como o maior
-                artilheiro da história da Amarelinha (superando Pelé em gols
-                oficiais), ele assumiu o protagonismo em uma era de entressafra
-                de craques, carregando a responsabilidade técnica do time por
-                mais de uma década.
+            <div className="min-h-[10px] text-2xl flex flex-col items-center justify-center col-span-2 font-bold m-10 text-white backdrop-blur-md bg-cyan-100/20 p-8 rounded-3xl border border-cyan-200/20 shadow-2xl shadow-vermelho-500">
+              <strong className="ml-5 italic">O Fim do Código, o Início da Arquitetura: O Novo Papel do Dev na Era da IA</strong>
+              <p className="ml-5 italic">
+                "A inteligência artificial não marca o fim da programação, mas o
+                início da era da engenharia de intenção. Deixamos de ser
+                operários da sintaxe, focados em linhas de código, para nos
+                tornarmos arquitetos de soluções, onde o progresso não é medido
+                pelo que digitamos, mas pela complexidade dos problemas que
+                somos capazes de resolver."
               </p>
             </div>
-            {/* Bloco 2: Ocupa 1 coluna (Metade do tamanho do primeiro) */}
-            <div className="text-2xl font-bold m-1 text-white col-span-1">
-              <p className="m-5 backdrop-blur-md bg-cyan-100/20 p-8 rounded-3xl border border-cyan-200/20 shadow-2xl">
-                A dúvida sobre a presença de Neymar na Seleção Brasileira para a
-                Copa do Mundo de 2026 atingiu um novo patamar após ele ter sido
-                deixado de fora da convocação de março de 2026 pelo técnico
-                Carlo Ancelotti para os últimos amistosos preparatórios.
-              </p>
-              <p className="m-5 backdrop-blur-md bg-cyan-100/20 p-8 rounded-3xl border border-cyan-200/20 shadow-2xl">
-                Recentemente, em abril de 2026, a ausência de sua figurinha no
-                álbum oficial da Copa reforçou os questionamentos sobre sua
-                participação no torneio.
-              </p>
-            </div>
+            <div className="col-span-1"></div>
           </div>
         </div>
       </HeroSection>
+
       <article className="max-w-3xl mx-auto py-20 px-6">
         <h1 className="text-4xl font-bold mb-8 text-white">
-          A Lacuna Técnica: Por que a ausência de Neymar ainda assombra a
-          Seleção
+          A Morte do "Digitador de Código" e a Ascensão do Engenheiro de
+          Intenção
         </h1>
 
         <section className="space-y-6 text-muted-foreground leading-relaxed">
           <p className="text-xl text-blue-400 font-medium italic">
-            "Não é apenas sobre gols, é sobre a gravidade que ele exerce no
-            campo."
+            "A IA é excelente em gerar respostas, mas o humano continua sendo o
+            único capaz de fazer as perguntas que realmente importam."
           </p>
 
           <p>
-            Desde sua ascensão meteórica no Santos, Neymar Jr. tornou-se o
-            epicentro do futebol brasileiro. Falar que ele faz falta é chover no
-            molhado, mas a análise tática revela um buraco muito mais profundo
-            do que a simples ausência de um "camisa 10". Quando Neymar está em
-            campo, o sistema defensivo adversário é obrigado a se reorganizar.
-            Ele atrai dois, às vezes três marcadores, criando espaços que
-            jogadores como Vinícius Jr. e Rodrygo ainda estão aprendendo a
-            explorar sem o "guarda-costas" técnico ao lado.
+            Estamos vivendo o fim da era da sintaxe. Ferramentas como Devin e
+            Copilot transformaram o ato de escrever código em uma{" "}
+            <strong>commodity</strong>. O que antes exigia domínio profundo de
+            bibliotecas e frameworks, hoje é resolvido em milissegundos por
+            modelos probabilísticos. Contudo, a programação nunca foi sobre
+            digitar; foi sobre resolver problemas de negócio ambíguos sob
+            restrições reais — algo onde a IA, presa a padrões do passado, ainda
+            tropeça.
           </p>
 
           <h2 className="text-2xl font-semibold text-white mt-10">
-            O Criador de Caos
+            A Diferença entre Predição e Inovação
           </h2>
           <p>
-            A Seleção Brasileira atual sofre de um mal comum no futebol moderno:
-            o excesso de tática e a escassez de improviso. Neymar é o último dos
-            "mágicos" que consegue resolver um jogo travado em um palmo de
-            terreno. Sem ele, o Brasil torna-se um time previsível, de
-            transições rápidas pelas pontas, mas com pouca criatividade pelo
-            centro.
+            Uma IA trabalha com a média da inteligência humana contida em seu
+            dataset. Ela é, por definição, conservadora: ela prevê o que{" "}
+            <em>provavelmente</em>
+            viria a seguir. Já a inovação disruptiva nasce do improvável. O
+            "pulo do gato" não é estatístico; é a capacidade de conectar áreas
+            desconexas — como filosofia, design e infraestrutura — para criar
+            soluções que a lógica probabilística jamais sugeriria.
           </p>
 
-          <div className="bg-secondary/30 p-8 rounded-lg border border-border my-10">
-            <p className="text-center text-lg font-light">
-              "Sem o Ney, o Brasil joga como um relógio suíço: funcional, mas
-              sem alma. Com ele, jogamos como música clássica: complexo,
-              arriscado e inesquecível."
+          <div className="rounded-lg bg-gradient-to-b from-blue-100/10 to-blue-300/30 p-8 shadow-xl my-10 backdrop-blur-md">
+            <p className="text-center text-lg font-medium text-blue-900">
+              "Confiar o núcleo de uma empresa 100% a uma IA é como colocar um
+              avião no piloto automático sem ninguém na cabine: é eficiente no
+              céu limpo, mas é a presença humana que salva a aeronave em meio à
+              tempestade de variáveis imprevisíveis."
             </p>
           </div>
 
           <h2 className="text-2xl font-semibold text-white">
-            As Estatísticas não Mentem
+            O Filtro Ético e a Responsabilidade Técnica
           </h2>
           <p>
-            Os números de assistências e passes decisivos de Neymar na era
-            pós-Tite mostram que ele participa de quase 60% das ações ofensivas
-            que resultam em gol. Quando ele não está, a responsabilidade cai
-            sobre jovens que, embora brilhantes em seus clubes, ainda sentem o
-            peso de serem os protagonistas absolutos da Amarelinha.
+            O grande gargalo da automação total é o{" "}
+            <strong>vazio de responsabilidade</strong>. LLMs podem introduzir
+            alucinações técnicas ou sugerir padrões obsoletos com
+            vulnerabilidades críticas. No fim do dia, quem assina a segurança
+            dos dados e a ética do algoritmo é um ser humano. O desenvolvedor
+            deixa de ser um "pedreiro digital" para se tornar um auditor de
+            sistemas e guardião da integridade técnica.
           </p>
 
-          {/* Repetição para gerar scroll */}
-          {[...Array(5)].map((_, i) => (
-            <p key={i}>
-              A falta que ele faz é sentida no drible que quebra a linha, na
-              falta sofrida na entrada da área que esfria o jogo, e na
-              capacidade de segurar a bola sob pressão. Enquanto o futebol
-              brasileiro busca um sucessor, a sombra do craque continua pairando
-              sobre cada convocação. Precisamos entender que Neymar não é o
-              problema, mas sim a solução que muitas vezes mascarou deficiências
-              coletivas da nossa equipe.
-            </p>
-          ))}
+          <p>
+            O futuro pertence aos <strong>Arquitetos de Sistemas</strong>. A
+            resistência à obsolescência não está na velocidade com que você
+            aprende uma nova linguagem, mas na profundidade da sua análise
+            crítica e na sua visão de produto. A IA não veio para ser sua
+            concorrente, mas para ser o teclado mais potente que você já teve em
+            mãos.
+          </p>
 
-          <p className="text-sm pt-10">
-            Conclusão: Enquanto a próxima geração não assume as rédeas da
-            criatividade, continuaremos olhando para o departamento médico ou
-            para as ligas estrangeiras esperando o retorno do nosso último
-            grande camisa 10.
+          <p className="text-sm pt-10 border-t border-white/10">
+            <strong>Conclusão:</strong> A IA substituirá quem apenas traduz
+            requisitos em código. Para quem desenha, questiona e lidera a
+            tecnologia, ela será apenas o motor que permitirá você chegar muito
+            mais longe, em muito menos tempo.
           </p>
         </section>
       </article>
