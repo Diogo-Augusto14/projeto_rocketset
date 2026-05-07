@@ -1,741 +1,1229 @@
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
 from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm, cm
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, PageBreak,
-    Table, TableStyle, HRFlowable, KeepTogether
+    SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle,
+    HRFlowable, KeepTogether
 )
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.platypus import Flowable
+from reportlab.lib.colors import HexColor
 
-# ── Output ──────────────────────────────────────────────────────────────────
-OUTPUT = "guia_dados.pdf"
+# ── Colors ──────────────────────────────────────────────────────────────────
+DARK_BG     = HexColor('#0f172a')
+ACCENT      = HexColor('#6366f1')
+ACCENT2     = HexColor('#818cf8')
+LIGHT_BG    = HexColor('#f1f5f9')
+CODE_BG     = HexColor('#1e293b')
+CODE_LINE   = HexColor('#334155')
+TEXT_DARK   = HexColor('#1e293b')
+TEXT_MUTED  = HexColor('#64748b')
+WHITE       = colors.white
+SUCCESS     = HexColor('#22c55e')
+WARNING     = HexColor('#f59e0b')
+ERROR       = HexColor('#ef4444')
+BORDER      = HexColor('#e2e8f0')
 
-# ── Palette ──────────────────────────────────────────────────────────────────
-GREEN      = colors.HexColor("#3ECF8E")   # Supabase green
-DARK_BG    = colors.HexColor("#1C1C1C")
-CODE_BG    = colors.HexColor("#1E1E2E")
-CODE_FG    = colors.HexColor("#CDD6F4")
-ACCENT     = colors.HexColor("#F59E0B")   # amber accent
-LIGHT_GRAY = colors.HexColor("#F3F4F6")
-BORDER     = colors.HexColor("#E5E7EB")
-TEXT_MAIN  = colors.HexColor("#111827")
-TEXT_MUTED = colors.HexColor("#6B7280")
-WHITE      = colors.white
+W, H = A4
 
-# ── Doc ──────────────────────────────────────────────────────────────────────
-doc = SimpleDocTemplate(
-    OUTPUT, pagesize=A4,
-    leftMargin=2*cm, rightMargin=2*cm,
-    topMargin=2.5*cm, bottomMargin=2*cm,
-)
-W = A4[0] - 4*cm   # usable width
+
+# ── Custom Flowables ─────────────────────────────────────────────────────────
+class ColoredRect(Flowable):
+    def __init__(self, width, height, fill_color, radius=4):
+        super().__init__()
+        self.width = width
+        self.height = height
+        self.fill_color = fill_color
+        self.radius = radius
+
+    def draw(self):
+        self.canv.setFillColor(self.fill_color)
+        self.canv.roundRect(0, 0, self.width, self.height, self.radius, fill=1, stroke=0)
+
+
+class SectionHeader(Flowable):
+    """Numbered section header with colored left bar."""
+    def __init__(self, number, title, width):
+        super().__init__()
+        self.number = number
+        self.title = title
+        self.width = width
+        self.height = 36
+
+    def draw(self):
+        c = self.canv
+        # Accent bar
+        c.setFillColor(ACCENT)
+        c.rect(0, 0, 5, self.height, fill=1, stroke=0)
+        # Number circle
+        c.setFillColor(ACCENT)
+        c.circle(22, self.height / 2, 11, fill=1, stroke=0)
+        c.setFillColor(WHITE)
+        c.setFont('Helvetica-Bold', 11)
+        num_str = str(self.number)
+        c.drawCentredString(22, self.height / 2 - 4, num_str)
+        # Title
+        c.setFillColor(TEXT_DARK)
+        c.setFont('Helvetica-Bold', 16)
+        c.drawString(42, self.height / 2 - 6, self.title)
+
+
+class NoteBox(Flowable):
+    """Colored info/warning/tip box."""
+    def __init__(self, text, kind='info', width=None):
+        super().__init__()
+        self._text = text
+        self.kind = kind
+        self._width = width or (W - 4*cm)
+        self.height = 0   # calculated later
+
+    def wrap(self, availWidth, availHeight):
+        self._width = availWidth
+        # estimate height
+        lines = self._text.count('\n') + 1
+        self.height = max(40, lines * 14 + 20)
+        return self._width, self.height
+
+    def draw(self):
+        c = self.canv
+        palette = {
+            'info':    (HexColor('#eff6ff'), HexColor('#3b82f6'), '💡 Dica'),
+            'warning': (HexColor('#fffbeb'), WARNING,              '⚠️  Atenção'),
+            'tip':     (HexColor('#f0fdf4'), SUCCESS,              '✅ Boas Práticas'),
+            'error':   (HexColor('#fef2f2'), ERROR,                '❌ Evite'),
+        }
+        bg, border, label = palette.get(self.kind, palette['info'])
+        c.setFillColor(bg)
+        c.roundRect(0, 0, self._width, self.height, 6, fill=1, stroke=0)
+        c.setStrokeColor(border)
+        c.setLineWidth(1.5)
+        c.roundRect(0, 0, self._width, self.height, 6, fill=0, stroke=1)
+        # left accent
+        c.setFillColor(border)
+        c.rect(0, 0, 4, self.height, fill=1, stroke=0)
+        # label
+        c.setFillColor(border)
+        c.setFont('Helvetica-Bold', 8)
+        c.drawString(12, self.height - 13, label)
+        # body text
+        c.setFillColor(TEXT_DARK)
+        c.setFont('Helvetica', 8.5)
+        lines = self._text.split('\n')
+        y = self.height - 26
+        for line in lines:
+            c.drawString(12, y, line)
+            y -= 12
+
 
 # ── Styles ───────────────────────────────────────────────────────────────────
-base = getSampleStyleSheet()
+def build_styles():
+    base = getSampleStyleSheet()
 
-def S(name, **kw):
-    return ParagraphStyle(name, **kw)
+    def s(name, **kw):
+        return ParagraphStyle(name, **kw)
 
-sTitle = S("sTitle",
-    fontName="Helvetica-Bold", fontSize=28, textColor=WHITE,
-    alignment=TA_CENTER, spaceAfter=6)
+    styles = {
+        'body': s('body', fontName='Helvetica', fontSize=10, leading=16,
+                  textColor=TEXT_DARK, alignment=TA_JUSTIFY, spaceAfter=8),
+        'body_sm': s('body_sm', fontName='Helvetica', fontSize=9, leading=14,
+                     textColor=TEXT_DARK, alignment=TA_LEFT, spaceAfter=6),
+        'h2': s('h2', fontName='Helvetica-Bold', fontSize=13, leading=20,
+                textColor=TEXT_DARK, spaceBefore=18, spaceAfter=8),
+        'h3': s('h3', fontName='Helvetica-Bold', fontSize=11, leading=16,
+                textColor=ACCENT, spaceBefore=12, spaceAfter=6),
+        'code': s('code', fontName='Courier', fontSize=8, leading=13,
+                  textColor=HexColor('#e2e8f0'), backColor=CODE_BG,
+                  leftIndent=8, rightIndent=8, spaceBefore=4, spaceAfter=4),
+        'code_label': s('code_label', fontName='Helvetica-Bold', fontSize=7.5,
+                        textColor=ACCENT2, spaceBefore=8, spaceAfter=2),
+        'bullet': s('bullet', fontName='Helvetica', fontSize=10, leading=15,
+                    textColor=TEXT_DARK, leftIndent=16, bulletIndent=4,
+                    spaceAfter=4),
+        'caption': s('caption', fontName='Helvetica-Oblique', fontSize=8,
+                     textColor=TEXT_MUTED, alignment=TA_CENTER, spaceAfter=10),
+        'toc_item': s('toc_item', fontName='Helvetica', fontSize=10, leading=18,
+                      textColor=TEXT_DARK, leftIndent=12),
+        'toc_sub': s('toc_sub', fontName='Helvetica', fontSize=9, leading=16,
+                     textColor=TEXT_MUTED, leftIndent=28),
+        'cover_title': s('cover_title', fontName='Helvetica-Bold', fontSize=36,
+                         textColor=WHITE, alignment=TA_CENTER, leading=44),
+        'cover_sub': s('cover_sub', fontName='Helvetica', fontSize=14,
+                       textColor=HexColor('#c7d2fe'), alignment=TA_CENTER, leading=20),
+        'cover_meta': s('cover_meta', fontName='Helvetica', fontSize=10,
+                        textColor=HexColor('#94a3b8'), alignment=TA_CENTER),
+    }
+    return styles
 
-sSubtitle = S("sSubtitle",
-    fontName="Helvetica", fontSize=12, textColor=colors.HexColor("#A1A1AA"),
-    alignment=TA_CENTER, spaceAfter=4)
 
-sChapterNum = S("sChapterNum",
-    fontName="Helvetica-Bold", fontSize=11, textColor=GREEN,
-    spaceBefore=20, spaceAfter=2)
+# ── Page templates ────────────────────────────────────────────────────────────
+def cover_page(canvas, doc):
+    canvas.saveState()
+    canvas.setFillColor(DARK_BG)
+    canvas.rect(0, 0, W, H, fill=1, stroke=0)
+    # Gradient strip
+    for i in range(80):
+        t = i / 80
+        r = int(99 + (15 - 99) * t) / 255
+        g = int(102 + (23 - 102) * t) / 255
+        b = int(241 + (42 - 241) * t) / 255
+        canvas.setFillColorRGB(r, g, b, alpha=0.7)
+        canvas.rect(0, H * 0.72 - i * 3, W, 3, fill=1, stroke=0)
+    # Top decorative circles
+    canvas.setFillColor(HexColor('#6366f1'))
+    canvas.circle(W - 60, H - 60, 80, fill=1, stroke=0)
+    canvas.setFillColor(HexColor('#4f46e5'))
+    canvas.circle(W - 30, H - 30, 45, fill=1, stroke=0)
+    canvas.setFillColor(HexColor('#818cf8'))
+    canvas.circle(60, 60, 50, fill=1, stroke=0)
+    canvas.restoreState()
 
-sChapter = S("sChapter",
-    fontName="Helvetica-Bold", fontSize=20, textColor=TEXT_MAIN,
-    spaceBefore=2, spaceAfter=8)
 
-sSection = S("sSection",
-    fontName="Helvetica-Bold", fontSize=13, textColor=TEXT_MAIN,
-    spaceBefore=14, spaceAfter=4)
+def normal_page(canvas, doc):
+    canvas.saveState()
+    # Header bar
+    canvas.setFillColor(DARK_BG)
+    canvas.rect(0, H - 22*mm, W, 22*mm, fill=1, stroke=0)
+    canvas.setFillColor(ACCENT)
+    canvas.rect(0, H - 23*mm, W, 1.5, fill=1, stroke=0)
+    canvas.setFillColor(WHITE)
+    canvas.setFont('Helvetica-Bold', 9)
+    canvas.drawString(2*cm, H - 15*mm, 'Web Push Notifications no Next.js')
+    canvas.setFont('Helvetica', 9)
+    canvas.setFillColor(HexColor('#94a3b8'))
+    canvas.drawRightString(W - 2*cm, H - 15*mm, doc.title or '')
+    # Footer
+    canvas.setFillColor(LIGHT_BG)
+    canvas.rect(0, 0, W, 14*mm, fill=1, stroke=0)
+    canvas.setStrokeColor(BORDER)
+    canvas.setLineWidth(0.5)
+    canvas.line(2*cm, 14*mm, W - 2*cm, 14*mm)
+    canvas.setFont('Helvetica', 8)
+    canvas.setFillColor(TEXT_MUTED)
+    canvas.drawString(2*cm, 5*mm, 'Guia Completo — Next.js & Web Push API')
+    canvas.drawRightString(W - 2*cm, 5*mm, f'Página {doc.page}')
+    canvas.restoreState()
 
-sSub = S("sSub",
-    fontName="Helvetica-Bold", fontSize=11, textColor=colors.HexColor("#374151"),
-    spaceBefore=10, spaceAfter=3)
 
-sBody = S("sBody",
-    fontName="Helvetica", fontSize=10, textColor=TEXT_MAIN,
-    leading=16, alignment=TA_JUSTIFY, spaceAfter=6)
-
-sBullet = S("sBullet",
-    fontName="Helvetica", fontSize=10, textColor=TEXT_MAIN,
-    leading=15, leftIndent=16, spaceAfter=3,
-    bulletText="•", bulletIndent=4)
-
-sCode = S("sCode",
-    fontName="Courier", fontSize=8.5, textColor=CODE_FG,
-    leading=13, leftIndent=10, rightIndent=10, spaceAfter=2)
-
-sNote = S("sNote",
-    fontName="Helvetica-Oblique", fontSize=9, textColor=colors.HexColor("#92400E"),
-    leading=14, leftIndent=14, spaceAfter=4)
-
-sCaption = S("sCaption",
-    fontName="Helvetica", fontSize=8, textColor=TEXT_MUTED,
-    alignment=TA_CENTER, spaceAfter=6)
-
-sTip = S("sTip",
-    fontName="Helvetica", fontSize=9.5, textColor=colors.HexColor("#065F46"),
-    leading=14, leftIndent=12, spaceAfter=3)
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def code_block(lines, lang=""):
-    """Dark rounded code block."""
-    content = "\n".join(lines)
-    inner = Table(
-        [[Paragraph(content.replace("\n", "<br/>"), sCode)]],
-        colWidths=[W - 0.4*cm]
-    )
-    inner.setStyle(TableStyle([
-        ("BACKGROUND", (0,0), (-1,-1), CODE_BG),
-        ("ROUNDEDCORNERS", [6]),
-        ("TOPPADDING",    (0,0), (-1,-1), 10),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-        ("LEFTPADDING",   (0,0), (-1,-1), 14),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 14),
+# ── Code block helper ─────────────────────────────────────────────────────────
+def code_block(lines, label=None, styles=None):
+    items = []
+    if label:
+        items.append(Paragraph(label, styles['code_label']))
+    # wrap in a table for background
+    rows = []
+    for line in lines:
+        safe = line.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        rows.append([Paragraph(safe, styles['code'])])
+    t = Table(rows, colWidths=[W - 4*cm - 16])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), CODE_BG),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (0, 0), 8),
+        ('BOTTOMPADDING', (0, -1), (-1, -1), 8),
+        ('INNERPADING', (0, 0), (-1, -1), 2),
+        ('ROUNDEDCORNERS', [6]),
     ]))
-    
-    if lang:
-        # Aqui estava o erro de fechamento de parênteses
-        label_text = Paragraph(lang, S("_l", fontName="Helvetica", fontSize=7.5, textColor=colors.HexColor("#6C7086")))
-        label = Table(
-            [[label_text], [inner]],
-            colWidths=[W - 0.4*cm]
-        )
-        label.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#161622")),
-            ("TOPPADDING",    (0,0), (-1,0), 5),
-            ("BOTTOMPADDING", (0,0), (-1,0), 4),
-            ("LEFTPADDING",   (0,0), (-1,0), 14),
-            ("RIGHTPADDING",  (0,0), (-1,0), 14),
-        ]))
-        return label
-    return inner
+    items.append(t)
+    items.append(Spacer(1, 6))
+    return items
 
-def section_bar(num_text, title_text):
-    return [
-        Paragraph(num_text, sChapterNum),
-        Paragraph(title_text, sChapter),
-        HRFlowable(width=W, thickness=1, color=BORDER, spaceAfter=4),
+
+def bullet(text, st):
+    return Paragraph(f'<bullet>•</bullet> {text}', st['bullet'])
+
+
+# ── Build document ────────────────────────────────────────────────────────────
+def build():
+    path = 'WebPushNextjs.pdf'
+    doc = SimpleDocTemplate(
+        path, pagesize=A4,
+        leftMargin=2*cm, rightMargin=2*cm,
+        topMargin=3*cm, bottomMargin=2.2*cm,
+        title='Guia Completo',
+    )
+    st = build_styles()
+    story = []
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPA
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(Spacer(1, 5*cm))
+    story.append(Paragraph('Dominando Web Push', st['cover_title']))
+    story.append(Paragraph('Notifications no Next.js', st['cover_title']))
+    story.append(Spacer(1, 0.6*cm))
+    story.append(Paragraph('Guia Completo — Arquitetura, Segurança, UX e Produção', st['cover_sub']))
+    story.append(Spacer(1, 1.2*cm))
+
+    # chips
+    chips_data = [['Service Worker', 'VAPID', 'Web Push API', 'Next.js 14+', 'TypeScript']]
+    chips = Table(chips_data, colWidths=[2.8*cm, 1.8*cm, 2.8*cm, 2.5*cm, 2.5*cm])
+    chips.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), ACCENT),
+        ('TEXTCOLOR', (0, 0), (-1, -1), WHITE),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('ROUNDEDCORNERS', [10]),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, WHITE),
+    ]))
+    story.append(chips)
+    story.append(Spacer(1, 1.8*cm))
+    story.append(Paragraph('2025 — Versão 2.0', st['cover_meta']))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SUMÁRIO
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(Spacer(1, 0.4*cm))
+    story.append(Paragraph('<b>Sumário</b>', ParagraphStyle('toc_h', fontName='Helvetica-Bold',
+                 fontSize=20, textColor=TEXT_DARK, spaceAfter=16)))
+    story.append(HRFlowable(width='100%', thickness=2, color=ACCENT, spaceAfter=12))
+
+    toc = [
+        ('1', 'Introdução & Conceitos Fundamentais', [
+            'O que são Push Notifications?', 'Por que usar no Next.js?', 'Suporte a navegadores']),
+        ('2', 'Arquitetura Completa do Sistema', [
+            'Visão geral dos componentes', 'Diagrama de fluxo', 'Protocolo Web Push']),
+        ('3', 'Configuração do Ambiente', [
+            'Pré-requisitos', 'Geração das chaves VAPID', 'Variáveis de ambiente']),
+        ('4', 'O Service Worker (sw.js)', [
+            'Registro e ciclo de vida', 'Evento push', 'Evento notificationclick', 'Estratégias de cache']),
+        ('5', 'Frontend — React Client Component', [
+            'Solicitando permissão', 'Gerenciando assinaturas', 'UX e estados de loading']),
+        ('6', 'Backend — Server Actions', [
+            'Configuração do web-push', 'Persistência em banco de dados', 'Segmentação de usuários']),
+        ('7', 'Segurança & Boas Práticas', [
+            'Chaves VAPID', 'TTL e expiração', 'Rate limiting']),
+        ('8', 'Notificações Avançadas', [
+            'Ações interativas', 'Notificações silenciosas', 'Push com imagem']),
+        ('9', 'Deploy & Produção', [
+            'Vercel, Railway e VPS', 'Banco de dados em produção', 'Monitoramento']),
+        ('10', 'Troubleshooting', [
+            'Erros comuns', 'Debugging do SW', 'Checklist final']),
     ]
 
-def tip_box(text):
-    inner = Paragraph("💡 " + text, sTip)
-    t = Table([[inner]], colWidths=[W - 0.4*cm])
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,-1), colors.HexColor("#ECFDF5")),
-        ("LEFTPADDING",   (0,0), (-1,-1), 14),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 14),
-        ("TOPPADDING",    (0,0), (-1,-1), 10),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-        ("ROUNDEDCORNERS", [4]),
-        ("BOX", (0,0), (-1,-1), 1.5, colors.HexColor("#6EE7B7")),
+    for num, title, subs in toc:
+        story.append(Paragraph(f'<b>{num}.</b>  {title}', st['toc_item']))
+        for sub in subs:
+            story.append(Paragraph(f'↳  {sub}', st['toc_sub']))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 1
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(1, 'Introdução & Conceitos Fundamentais', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>O que são Web Push Notifications?</b>', st['h2']))
+    story.append(Paragraph(
+        'Web Push Notifications são mensagens enviadas por um servidor diretamente para o '
+        'navegador do usuário, mesmo quando o site não está aberto. Elas utilizam o protocolo '
+        '<b>Web Push Protocol (RFC 8030)</b> combinado com a API de Service Workers para '
+        'entregar mensagens em tempo real de forma confiável e segura.',
+        st['body']))
+    story.append(Paragraph(
+        'O fluxo básico envolve três partes distintas: o <b>servidor de aplicação</b> (seu backend '
+        'Next.js), o <b>servidor de Push</b> (operado pelo Google, Apple ou Mozilla) e o '
+        '<b>navegador do usuário</b> com seu Service Worker registrado.',
+        st['body']))
+
+    story.append(NoteBox(
+        'As Web Push Notifications são suportadas em Chrome, Firefox, Edge, Safari (iOS 16.4+)\n'
+        'e Opera. São baseadas em padrões abertos — não dependem de SDKs proprietários.',
+        'info'))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph('<b>Por que usar Push Notifications no Next.js?</b>', st['h2']))
+    for item in [
+        '<b>Reengajamento:</b> Traga usuários de volta ao site sem precisar de um app nativo.',
+        '<b>Tempo real:</b> Notifique sobre eventos críticos instantaneamente (pedidos, alertas).',
+        '<b>Server Actions:</b> Next.js 14+ permite disparar notificações direto de ações do servidor.',
+        '<b>App Router:</b> Compatível com a nova arquitetura de componentes do Next.js.',
+        '<b>PWA:</b> Combinado com um manifest.json, transforma seu site em um Progressive Web App.',
+        '<b>Sem push nativo:</b> Elimina a necessidade de React Native ou Flutter para alertas simples.',
+    ]:
+        story.append(bullet(item, st))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph('<b>Comparativo: Push Web vs Push Nativo</b>', st['h3']))
+    comp_data = [
+        ['Critério', 'Push Web', 'Push Nativo (iOS/Android)'],
+        ['Instalação de app', 'Não necessária', 'Obrigatória'],
+        ['Custo de infra', 'Baixo (FCM grátis)', 'Médio (APN $ + FCM)'],
+        ['Permissão do usuário', 'Via browser popup', 'Via OS popup'],
+        ['Suporte offline', 'Limitado', 'Completo'],
+        ['Ações ricas', 'Até 2 ações', 'Múltiplas ações'],
+        ['Taxa de opt-in', '~5-15%', '~40-60%'],
+        ['Implementação', 'Web stack padrão', 'Código nativo / SDK'],
+    ]
+    comp = Table(comp_data, colWidths=[4.5*cm, 5*cm, 5.5*cm])
+    comp.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), ACCENT),
+        ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_BG]),
+        ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
-    return t
+    story.append(comp)
+    story.append(Spacer(1, 14))
 
-def warning_box(text):
-    inner = Paragraph("⚠️  " + text, sNote)
-    t = Table([[inner]], colWidths=[W - 0.4*cm])
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,-1), colors.HexColor("#FFFBEB")),
-        ("LEFTPADDING",   (0,0), (-1,-1), 14),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 14),
-        ("TOPPADDING",    (0,0), (-1,-1), 10),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-        ("BOX", (0,0), (-1,-1), 1.5, colors.HexColor("#FCD34D")),
+    story.append(Paragraph('<b>Suporte a Navegadores (2025)</b>', st['h3']))
+    browser_data = [
+        ['Navegador', 'Versão Mínima', 'Suporte Push', 'Observações'],
+        ['Chrome / Chromium', '42+', '✅ Completo', 'Usa FCM (Firebase)'],
+        ['Firefox', '44+', '✅ Completo', 'Usa autopush.mozilla.org'],
+        ['Edge', '17+', '✅ Completo', 'Usa WNS / FCM'],
+        ['Safari (macOS)', '16+', '✅ Completo', 'Requer APNS key'],
+        ['Safari (iOS)', '16.4+', '✅ PWA only', 'Apenas em home screen'],
+        ['Opera', '29+', '✅ Completo', 'Usa FCM'],
+        ['IE / Samsung Internet', '-', '❌ Sem suporte', 'Fallback necessário'],
+    ]
+    bt = Table(browser_data, colWidths=[3.5*cm, 3*cm, 3*cm, 5.5*cm])
+    bt.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), DARK_BG),
+        ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_BG]),
+        ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
-    return t
+    story.append(bt)
+    story.append(PageBreak())
 
-def make_table(headers, rows, col_widths=None):
-    data = [[Paragraph(h, S("_th", fontName="Helvetica-Bold", fontSize=9,
-                             textColor=WHITE)) for h in headers]]
-    for row in rows:
-        data.append([Paragraph(str(c), S("_td", fontName="Helvetica", fontSize=9,
-                                          textColor=TEXT_MAIN, leading=13)) for c in row])
-    cw = col_widths or [W / len(headers)] * len(headers)
-    t = Table(data, colWidths=cw)
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,0),  DARK_BG),
-        ("BACKGROUND",    (0,1), (-1,-1), WHITE),
-        ("ROWBACKGROUNDS",(0,1), (-1,-1), [WHITE, LIGHT_GRAY]),
-        ("GRID",          (0,0), (-1,-1), 0.5, BORDER),
-        ("TOPPADDING",    (0,0), (-1,-1), 7),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 7),
-        ("LEFTPADDING",   (0,0), (-1,-1), 10),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 10),
-        ("ROUNDEDCORNERS",[4]),
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 2
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(2, 'Arquitetura Completa do Sistema', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Visão Geral dos Componentes</b>', st['h2']))
+    story.append(Paragraph(
+        'A arquitetura de Web Push Notifications no Next.js é composta por quatro camadas '
+        'bem definidas que trabalham em conjunto. Entender cada camada é fundamental para '
+        'implementar um sistema robusto e escalável.',
+        st['body']))
+
+    arch_data = [
+        ['Camada', 'Tecnologia', 'Responsabilidade'],
+        ['Service Worker', 'sw.js (navegador)', 'Receber e exibir notificações em background'],
+        ['Frontend', 'React Client Component', 'Pedir permissão, gerenciar assinatura'],
+        ['Backend', 'Next.js Server Actions', 'Disparar notificações via web-push'],
+        ['Banco de Dados', 'PostgreSQL / MongoDB', 'Persistir assinaturas dos usuários'],
+        ['Push Server', 'FCM / APNs / Mozilla', 'Rotear notificações para o navegador correto'],
+    ]
+    at = Table(arch_data, colWidths=[4*cm, 4.5*cm, 7*cm])
+    at.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), ACCENT),
+        ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_BG]),
+        ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
     ]))
-    return t
+    story.append(at)
+    story.append(Spacer(1, 14))
 
-def spacer(h=0.3): return Spacer(1, h*cm)
+    story.append(Paragraph('<b>Diagrama de Fluxo Completo</b>', st['h2']))
+    steps = [
+        ('1', 'Registro', 'O site carrega e registra o Service Worker (sw.js) via navigator.serviceWorker.register()'),
+        ('2', 'Permissão', 'O usuário clica em "Ativar notificações". O browser exibe o popup de permissão do sistema operacional.'),
+        ('3', 'Assinatura', 'PushManager.subscribe() gera um objeto PushSubscription contendo endpoint único e chaves de criptografia.'),
+        ('4', 'Persistência', 'O frontend envia o PushSubscription ao backend via Server Action. O backend salva no banco de dados vinculado ao usuário.'),
+        ('5', 'Disparo', 'Quando um evento ocorre, o backend busca as assinaturas relevantes e chama webpush.sendNotification().'),
+        ('6', 'Roteamento', 'A biblioteca web-push envia um HTTP POST para o Push Server (FCM/APNs), que roteia para o dispositivo correto.'),
+        ('7', 'Recepção', 'O Service Worker acorda via evento "push", processa os dados e chama showNotification().'),
+        ('8', 'Interação', 'O usuário vê a notificação. Ao clicar, o evento "notificationclick" é disparado e o site é aberto.'),
+    ]
+    for num, title, desc in steps:
+        row_data = [[
+            Paragraph(f'<b>{num}</b>', ParagraphStyle('n', fontName='Helvetica-Bold',
+                      fontSize=11, textColor=WHITE, alignment=TA_CENTER)),
+            Paragraph(f'<b>{title}</b>\n{desc}', ParagraphStyle('d', fontName='Helvetica',
+                      fontSize=9, textColor=TEXT_DARK, leading=14))
+        ]]
+        rt = Table(row_data, colWidths=[1*cm, W - 4*cm - 1.4*cm])
+        color = ACCENT if int(num) % 2 == 1 else ACCENT2
+        rt.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, 0), color),
+            ('BACKGROUND', (1, 0), (1, 0), WHITE if int(num) % 2 == 1 else LIGHT_BG),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+            ('LEFTPADDING', (1, 0), (1, 0), 10),
+            ('GRID', (0, 0), (-1, -1), 0.3, BORDER),
+        ]))
+        story.append(rt)
+    story.append(Spacer(1, 14))
 
-# ── Cover ─────────────────────────────────────────────────────────────────────
-def cover():
-    # Hero banner
-    hero = Table(
-        [[Paragraph("Guia Completo", sTitle)],
-         [Paragraph("JavaScript Moderno + Supabase", sSubtitle)],
-         [Paragraph(".map() · CRUD · Auth · Tempo Real", sSubtitle)]],
-        colWidths=[W]
+    story.append(Paragraph('<b>O Protocolo Web Push (RFC 8030)</b>', st['h2']))
+    story.append(Paragraph(
+        'O protocolo Web Push define como os servidores de aplicação se comunicam com os '
+        'servidores de Push. Cada notificação é criptografada usando <b>ECDH (Elliptic Curve '
+        'Diffie-Hellman)</b> com as chaves do objeto PushSubscription, garantindo que apenas '
+        'o navegador do usuário consiga descriptografar o conteúdo.',
+        st['body']))
+    story.append(NoteBox(
+        'A criptografia é feita em duas camadas:\n'
+        '1. Content-Encoding: aes128gcm (RFC 8291) — criptografa o payload\n'
+        '2. VAPID (RFC 8292) — autentica o servidor de origem\n'
+        'A biblioteca web-push cuida de toda essa complexidade automaticamente.',
+        'tip'))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 3
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(3, 'Configuração do Ambiente', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Pré-requisitos</b>', st['h2']))
+    for item in [
+        'Node.js 18.17+ (LTS recomendado)',
+        'Next.js 14+ com App Router habilitado',
+        'HTTPS obrigatório em produção (localhost funciona em desenvolvimento)',
+        'Conta no banco de dados (PostgreSQL recomendado para produção)',
+    ]:
+        story.append(bullet(item, st))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph('<b>Instalação das Dependências</b>', st['h3']))
+    story += code_block([
+        '# Instalar a biblioteca web-push',
+        'npm install web-push',
+        '',
+        '# Tipos TypeScript (opcional mas recomendado)',
+        'npm install -D @types/web-push',
+        '',
+        '# Para banco de dados (exemplo com Prisma + PostgreSQL)',
+        'npm install prisma @prisma/client',
+        'npx prisma init',
+    ], '📦  Terminal — Instalação', st)
+
+    story.append(Paragraph('<b>Gerando as Chaves VAPID</b>', st['h2']))
+    story.append(Paragraph(
+        'As chaves VAPID (Voluntary Application Server Identification) são um par de chaves '
+        'criptográficas que identificam seu servidor de aplicação. Elas garantem que apenas '
+        'você possa enviar notificações para seus usuários. As chaves são geradas uma única '
+        'vez e reutilizadas em toda a vida do projeto.',
+        st['body']))
+
+    story += code_block([
+        '# Método 1: Via CLI do web-push (recomendado)',
+        'npx web-push generate-vapid-keys',
+        '',
+        '# Saída esperada:',
+        '# Public Key:',
+        '# BEl8BHjZCv5Nn4iMrGMJuNHbHRCL4Fhq5u5y...',
+        '# Private Key:',
+        '# Xt_jGdmh7Nm1cQbKFJEt_MsUyQYd3RHHQ...',
+        '',
+        '# Método 2: Via código Node.js',
+        'const webpush = require("web-push");',
+        'const vapidKeys = webpush.generateVAPIDKeys();',
+        'console.log(vapidKeys.publicKey);',
+        'console.log(vapidKeys.privateKey);',
+    ], '🔑  Geração de Chaves VAPID', st)
+
+    story.append(NoteBox(
+        'NUNCA gere novas chaves VAPID em produção sem invalidar todas as assinaturas existentes!\n'
+        'Ao trocar as chaves, todos os usuários precisam se re-inscrever.\n'
+        'Armazene as chaves em um gerenciador de segredos (Vault, AWS Secrets Manager).',
+        'warning'))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph('<b>Configurando Variáveis de Ambiente</b>', st['h3']))
+    story += code_block([
+        '# .env.local',
+        '',
+        '# Chave pública VAPID — prefixo NEXT_PUBLIC_ pois é usada no frontend',
+        'NEXT_PUBLIC_VAPID_PUBLIC_KEY=BEl8BHjZCv5Nn4iMrGMJuNH...',
+        '',
+        '# Chave privada VAPID — NUNCA prefixar com NEXT_PUBLIC_',
+        'VAPID_PRIVATE_KEY=Xt_jGdmh7Nm1cQbKFJEt_MsUy...',
+        '',
+        '# Email de contato (obrigatório pelo protocolo VAPID)',
+        'VAPID_EMAIL=seu-email@dominio.com',
+        '',
+        '# String de conexão com o banco de dados',
+        'DATABASE_URL=postgresql://user:pass@host:5432/pushdb',
+    ], '⚙️  .env.local — Variáveis de Ambiente', st)
+
+    story += code_block([
+        '# .gitignore — certifique-se que .env.local está ignorado',
+        '.env.local',
+        '.env.*.local',
+        '',
+        '# Verifique com:',
+        'git check-ignore -v .env.local',
+        '# Saída esperada: .gitignore:N  .env.local',
+    ], '🔒  .gitignore — Protegendo Segredos', st)
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 4
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(4, 'O Service Worker (sw.js)', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Ciclo de Vida do Service Worker</b>', st['h2']))
+    story.append(Paragraph(
+        'O Service Worker passa por três fases principais: <b>instalação</b> (install), '
+        '<b>ativação</b> (activate) e <b>funcionamento</b> (fetch/push). '
+        'Compreender esse ciclo é essencial para evitar bugs de cache e notificações duplicadas.',
+        st['body']))
+
+    story += code_block([
+        '// public/sw.js — Arquivo completo do Service Worker',
+        '',
+        '// ── Fase 1: Instalação ──────────────────────────────────────────────',
+        'self.addEventListener("install", (event) => {',
+        '  console.log("[SW] Instalando...");',
+        '  // skipWaiting() faz o novo SW ativar imediatamente sem esperar',
+        '  // o antigo ser descarregado. Use com cuidado em produção.',
+        '  self.skipWaiting();',
+        '});',
+        '',
+        '// ── Fase 2: Ativação ────────────────────────────────────────────────',
+        'self.addEventListener("activate", (event) => {',
+        '  console.log("[SW] Ativado. Controlando clientes...");',
+        '  // clients.claim() faz o SW assumir controle de todas as abas',
+        '  // abertas imediatamente, sem precisar recarregar a página.',
+        '  event.waitUntil(clients.claim());',
+        '});',
+    ], '📄  sw.js — Instalação e Ativação', st)
+
+    story += code_block([
+        '// ── Fase 3: Recebendo Notificações ─────────────────────────────────',
+        'self.addEventListener("push", function (event) {',
+        '  // Verifica se há dados no payload',
+        '  if (!event.data) return;',
+        '',
+        '  const data = event.data.json();',
+        '',
+        '  const options = {',
+        '    body: data.body,',
+        '    icon: data.icon || "/icons/icon-192x192.png",',
+        '    badge: "/icons/badge-72x72.png",',
+        '    image: data.image,              // Imagem grande (banner)',
+        '    vibrate: [200, 100, 200],        // Padrão de vibração',
+        '    tag: data.tag || "default",      // Agrupa notifs do mesmo tipo',
+        '    renotify: true,                  // Vibra mesmo com tag igual',
+        '    requireInteraction: data.persist || false, // Não auto-dismiss',
+        '    silent: data.silent || false,    // Sem som/vibração',
+        '    timestamp: Date.now(),           // Timestamp da chegada',
+        '    actions: data.actions || [],     // Botões de ação',
+        '    data: {',
+        '      url: data.url || "/",          // URL a abrir ao clicar',
+        '      id: data.id,                   // ID para tracking',
+        '    },',
+        '  };',
+        '',
+        '  event.waitUntil(',
+        '    self.registration.showNotification(data.title, options)',
+        '  );',
+        '});',
+    ], '🔔  sw.js — Recebendo e Exibindo Notificações', st)
+
+    story += code_block([
+        '// ── Fase 4: Clique na Notificação ──────────────────────────────────',
+        'self.addEventListener("notificationclick", function (event) {',
+        '  event.notification.close();',
+        '',
+        '  const url = event.notification.data?.url || "/";',
+        '  const action = event.action; // ID do botão clicado (se houver)',
+        '',
+        '  event.waitUntil(',
+        '    clients.matchAll({ type: "window", includeUncontrolled: true })',
+        '      .then((clientList) => {',
+        '        // Se o site já está aberto em alguma aba, foca nela',
+        '        for (const client of clientList) {',
+        '          if (client.url === url && "focus" in client) {',
+        '            return client.focus();',
+        '          }',
+        '        }',
+        '        // Senão, abre uma nova aba',
+        '        if (clients.openWindow) {',
+        '          return clients.openWindow(url);',
+        '        }',
+        '      })',
+        '  );',
+        '});',
+        '',
+        '// ── Fase 5: Notificação Fechada ─────────────────────────────────────',
+        'self.addEventListener("notificationclose", function (event) {',
+        '  // Útil para analytics: saber que o usuário descartou a notificação',
+        '  const data = event.notification.data;',
+        '  console.log("[SW] Notificação fechada sem clique:", data?.id);',
+        '  // Aqui você poderia enviar um beacon de analytics',
+        '});',
+    ], '👆  sw.js — Tratando Cliques e Fechamento', st)
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 5
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(5, 'Frontend — React Client Component', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Estrutura Completa do Componente</b>', st['h2']))
+    story.append(Paragraph(
+        'O componente de gerenciamento de Push Notifications deve ser robusto, '
+        'lidar com todos os estados possíveis (loading, erro, não suportado, inscrito, '
+        'não inscrito) e fornecer uma UX clara ao usuário.',
+        st['body']))
+
+    story += code_block([
+        '"use client";',
+        'import { useState, useEffect, useCallback } from "react";',
+        'import { subscribeUser, unsubscribeUser, sendNotification } from "@/app/actions";',
+        '',
+        '// Converte chave VAPID Base64URL para Uint8Array (requisito do PushManager)',
+        'function urlBase64ToUint8Array(base64String: string): Uint8Array {',
+        '  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);',
+        '  const base64 = (base64String + padding)',
+        '    .replace(/-/g, "+").replace(/_/g, "/");',
+        '  const rawData = window.atob(base64);',
+        '  return new Uint8Array([...rawData].map((c) => c.charCodeAt(0)));',
+        '}',
+        '',
+        'type NotificationState = "idle" | "loading" | "subscribed" |',
+        '                         "unsubscribed" | "denied" | "unsupported";',
+        '',
+        'export default function PushNotificationManager() {',
+        '  const [state, setState] = useState<NotificationState>("idle");',
+        '  const [subscription, setSubscription] = useState<PushSubscription|null>(null);',
+        '  const [error, setError] = useState<string | null>(null);',
+        '  const [message, setMessage] = useState("");',
+    ], '⚛️  components/PushNotificationManager.tsx — Parte 1', st)
+
+    story += code_block([
+        '  // Verificar suporte e assinatura existente ao montar',
+        '  useEffect(() => {',
+        '    const checkSupport = async () => {',
+        '      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {',
+        '        setState("unsupported");',
+        '        return;',
+        '      }',
+        '      if (Notification.permission === "denied") {',
+        '        setState("denied");',
+        '        return;',
+        '      }',
+        '      const reg = await navigator.serviceWorker.register("/sw.js", {',
+        '        scope: "/",',
+        '        updateViaCache: "none",',
+        '      });',
+        '      const sub = await reg.pushManager.getSubscription();',
+        '      if (sub) {',
+        '        setSubscription(sub);',
+        '        setState("subscribed");',
+        '      } else {',
+        '        setState("unsubscribed");',
+        '      }',
+        '    };',
+        '    checkSupport();',
+        '  }, []);',
+    ], '⚛️  components/PushNotificationManager.tsx — Parte 2 (useEffect)', st)
+
+    story += code_block([
+        '  const subscribeToPush = useCallback(async () => {',
+        '    setState("loading");',
+        '    setError(null);',
+        '    try {',
+        '      const reg = await navigator.serviceWorker.ready;',
+        '      const sub = await reg.pushManager.subscribe({',
+        '        userVisibleOnly: true,',
+        '        applicationServerKey: urlBase64ToUint8Array(',
+        '          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!',
+        '        ),',
+        '      });',
+        '      setSubscription(sub);',
+        '      setState("subscribed");',
+        '      await subscribeUser(JSON.parse(JSON.stringify(sub)));',
+        '    } catch (err: any) {',
+        '      setError(err.message);',
+        '      setState("unsubscribed");',
+        '    }',
+        '  }, []);',
+        '',
+        '  const unsubscribeFromPush = useCallback(async () => {',
+        '    setState("loading");',
+        '    await subscription?.unsubscribe();',
+        '    setSubscription(null);',
+        '    setState("unsubscribed");',
+        '    await unsubscribeUser();',
+        '  }, [subscription]);',
+    ], '⚛️  components/PushNotificationManager.tsx — Parte 3 (handlers)', st)
+
+    story.append(NoteBox(
+        'Use useCallback() em funções de efeito colateral para evitar re-renders\n'
+        'desnecessários ao passar como props ou usar em useEffect com dependências.',
+        'tip'))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 6
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(6, 'Backend — Server Actions', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Schema do Banco de Dados (Prisma)</b>', st['h2']))
+    story.append(Paragraph(
+        'Em produção, as assinaturas devem ser salvas em um banco de dados real, '
+        'vinculadas ao usuário autenticado. Abaixo um schema Prisma completo para '
+        'PostgreSQL.',
+        st['body']))
+
+    story += code_block([
+        '// prisma/schema.prisma',
+        'generator client {',
+        '  provider = "prisma-client-js"',
+        '}',
+        '',
+        'datasource db {',
+        '  provider = "postgresql"',
+        '  url      = env("DATABASE_URL")',
+        '}',
+        '',
+        'model User {',
+        '  id            String         @id @default(cuid())',
+        '  email         String         @unique',
+        '  name          String?',
+        '  subscriptions PushSubscription[]',
+        '  createdAt     DateTime       @default(now())',
+        '}',
+        '',
+        'model PushSubscription {',
+        '  id        String   @id @default(cuid())',
+        '  userId    String',
+        '  user      User     @relation(fields: [userId], references: [id])',
+        '  endpoint  String   @unique',  
+        '  p256dh    String   // Chave pública de criptografia',
+        '  auth      String   // Segredo de autenticação',
+        '  userAgent String?  // Identificação do browser',
+        '  createdAt DateTime @default(now())',
+        '  updatedAt DateTime @updatedAt',
+        '',
+        '  @@index([userId])',
+        '}',
+    ], '🗄️  prisma/schema.prisma — Schema Completo', st)
+
+    story += code_block([
+        '"use server";',
+        'import webpush from "web-push";',
+        'import { prisma } from "@/lib/prisma";',
+        'import { auth } from "@/lib/auth"; // seu sistema de autenticação',
+        '',
+        'webpush.setVapidDetails(',
+        '  `mailto:${process.env.VAPID_EMAIL}`,',
+        '  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,',
+        '  process.env.VAPID_PRIVATE_KEY!,',
+        ');',
+        '',
+        'export async function subscribeUser(sub: any) {',
+        '  const session = await auth(); // NextAuth / Clerk / etc.',
+        '  if (!session?.user?.id) throw new Error("Não autenticado");',
+        '',
+        '  await prisma.pushSubscription.upsert({',
+        '    where: { endpoint: sub.endpoint },',
+        '    create: {',
+        '      userId:   session.user.id,',
+        '      endpoint: sub.endpoint,',
+        '      p256dh:   sub.keys.p256dh,',
+        '      auth:     sub.keys.auth,',
+        '      userAgent: sub.userAgent,',
+        '    },',
+        '    update: { updatedAt: new Date() },',
+        '  });',
+        '  return { success: true };',
+        '}',
+    ], '⚙️  app/actions.ts — subscribeUser com Banco de Dados', st)
+
+    story += code_block([
+        'export async function sendNotificationToUser(',
+        '  userId: string,',
+        '  payload: { title: string; body: string; url?: string; icon?: string }',
+        ') {',
+        '  const subscriptions = await prisma.pushSubscription.findMany({',
+        '    where: { userId },',
+        '  });',
+        '',
+        '  const results = await Promise.allSettled(',
+        '    subscriptions.map(async (sub) => {',
+        '      try {',
+        '        await webpush.sendNotification(',
+        '          { endpoint: sub.endpoint,',
+        '            keys: { p256dh: sub.p256dh, auth: sub.auth } },',
+        '          JSON.stringify(payload)',
+        '        );',
+        '      } catch (err: any) {',
+        '        // Assinatura expirada ou inválida — remover do banco',
+        '        if (err.statusCode === 410 || err.statusCode === 404) {',
+        '          await prisma.pushSubscription.delete({',
+        '            where: { id: sub.id },',
+        '          });',
+        '        }',
+        '        throw err;',
+        '      }',
+        '    })',
+        '  );',
+        '  return results;',
+        '}',
+    ], '📤  app/actions.ts — Enviando para Usuário com Limpeza Automática', st)
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 7
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(7, 'Segurança & Boas Práticas', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Chaves VAPID — Gerenciamento Seguro</b>', st['h2']))
+    for item in [
+        'Gere as chaves VAPID <b>uma única vez</b> por domínio e armazene com segurança.',
+        'Use um <b>gerenciador de segredos</b>: AWS Secrets Manager, HashiCorp Vault, Doppler.',
+        'Nunca commite chaves no repositório — use <b>.env.local</b> e variáveis de CI/CD.',
+        'Rotacione as chaves apenas em emergências (comprometimento). Invalida todos os subscribers.',
+        'Monitore o <b>email VAPID</b> — o servidor de Push pode enviar alertas de abuso.',
+    ]:
+        story.append(bullet(item, st))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph('<b>TTL (Time To Live) e Expiração</b>', st['h3']))
+    story.append(Paragraph(
+        'O TTL define por quanto tempo um servidor de Push deve tentar entregar '
+        'uma notificação caso o dispositivo esteja offline. Configure-o com base '
+        'na urgência do conteúdo.',
+        st['body']))
+    ttl_data = [
+        ['Tipo de Notificação', 'TTL Recomendado', 'Exemplo'],
+        ['Tempo real / urgente', '0 segundos', 'Alerta de fraude, autenticação 2FA'],
+        ['Transacional', '3600 (1 hora)', 'Confirmação de pedido, pagamento'],
+        ['Engajamento', '86400 (24h)', 'Newsletter, promoção do dia'],
+        ['Conteúdo evergreen', '604800 (1 semana)', 'Novo artigo, feature update'],
+    ]
+    ttl = Table(ttl_data, colWidths=[5*cm, 4*cm, 6*cm])
+    ttl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), DARK_BG),
+        ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_BG]),
+        ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(ttl)
+    story.append(Spacer(1, 8))
+
+    story += code_block([
+        '// Configurando TTL ao enviar notificação',
+        'await webpush.sendNotification(',
+        '  subscription,',
+        '  JSON.stringify(payload),',
+        '  {',
+        '    TTL: 3600,        // 1 hora em segundos',
+        '    urgency: "normal", // "very-low" | "low" | "normal" | "high"',
+        '    topic: "orders",   // Substitui notifs anteriores do mesmo tópico',
+        '  }',
+        ');',
+    ], '⏱️  Configurando TTL e Urgência', st)
+
+    story.append(Paragraph('<b>Rate Limiting — Evitando Spam</b>', st['h2']))
+    story += code_block([
+        '// lib/rateLimiter.ts — Usando Upstash Redis + ratelimit',
+        'import { Ratelimit } from "@upstash/ratelimit";',
+        'import { Redis } from "@upstash/redis";',
+        '',
+        'const ratelimit = new Ratelimit({',
+        '  redis: Redis.fromEnv(),',
+        '  limiter: Ratelimit.slidingWindow(5, "1 h"), // 5 notifs/usuário/hora',
+        '  analytics: true,',
+        '});',
+        '',
+        'export async function checkRateLimit(userId: string) {',
+        '  const { success, reset } = await ratelimit.limit(userId);',
+        '  if (!success) {',
+        '    const waitSeconds = Math.ceil((reset - Date.now()) / 1000);',
+        '    throw new Error(`Rate limit atingido. Tente em ${waitSeconds}s`);',
+        '  }',
+        '}',
+    ], '🚦  Rate Limiting com Upstash Redis', st)
+
+    story.append(NoteBox(
+        'Nunca envie mais de 1 notificação por hora para o mesmo usuário em conteúdo\n'
+        'de marketing. Para notificações críticas (2FA, alertas de fraude), sem limite.\n'
+        'Monitore sua taxa de opt-out — acima de 5% indica abuso de frequência.',
+        'warning'))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 8
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(8, 'Notificações Avançadas', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Notificações com Ações (Botões Interativos)</b>', st['h2']))
+    story.append(Paragraph(
+        'Notificações com ações permitem que o usuário interaja sem abrir o site, '
+        'como confirmar um pedido ou marcar uma tarefa como concluída. Suportado '
+        'em Chrome e Edge (até 2 ações por notificação).',
+        st['body']))
+
+    story += code_block([
+        '// No Service Worker: definindo as ações',
+        'const options = {',
+        '  body: "Seu pedido #4521 foi confirmado!",',
+        '  icon: "/icons/icon-192.png",',
+        '  actions: [',
+        '    {',
+        '      action: "view-order",   // ID da ação',
+        '      title: "Ver Pedido",    // Texto do botão',
+        '      icon: "/icons/bag.png", // Ícone do botão (opcional)',
+        '    },',
+        '    {',
+        '      action: "dismiss",',
+        '      title: "Dispensar",',
+        '      icon: "/icons/x.png",',
+        '    },',
+        '  ],',
+        '  data: { orderId: "4521", url: "/orders/4521" },',
+        '};',
+        '',
+        '// Tratando o clique na ação específica',
+        'self.addEventListener("notificationclick", (event) => {',
+        '  event.notification.close();',
+        '  const { action, notification } = event;',
+        '  const { orderId, url } = notification.data;',
+        '',
+        '  if (action === "view-order") {',
+        '    event.waitUntil(clients.openWindow(url));',
+        '  } else if (action === "dismiss") {',
+        '    // Apenas fecha — nenhuma ação adicional',
+        '  } else {',
+        '    // Clique no corpo da notificação',
+        '    event.waitUntil(clients.openWindow("/"));',
+        '  }',
+        '});',
+    ], '🎯  Notificações com Botões de Ação', st)
+
+    story.append(Paragraph('<b>Notificação com Imagem (Rich Push)</b>', st['h2']))
+    story += code_block([
+        '// Backend: payload com imagem',
+        'const payload = {',
+        '  title: "Nova promoção: 50% OFF",',
+        '  body: "Apenas hoje! Corra antes que acabe.",',
+        '  icon: "/icons/icon-192.png",',
+        '  image: "https://cdn.seusite.com/banner-promo.jpg", // 2:1 ratio ideal',
+        '  url: "/promocoes",',
+        '  tag: "promo-50",  // Substitui notificação anterior com mesmo tag',
+        '};',
+        '',
+        'await webpush.sendNotification(subscription, JSON.stringify(payload));',
+    ], '🖼️  Rich Push — Notificação com Imagem Banner', st)
+
+    story.append(Paragraph('<b>Notificações Silenciosas (Data Push)</b>', st['h2']))
+    story.append(Paragraph(
+        'Notificações silenciosas entregam dados ao Service Worker sem mostrar '
+        'nada ao usuário. Úteis para sincronização de dados em background.',
+        st['body']))
+    story += code_block([
+        '// Backend: enviar payload sem título/body visível',
+        'const silentPayload = {',
+        '  silent: true,',
+        '  type: "sync-data",',
+        '  data: { userId: "123", newMessages: 5 }',
+        '};',
+        '',
+        '// Service Worker: tratar sem exibir notificação',
+        'self.addEventListener("push", (event) => {',
+        '  const data = event.data.json();',
+        '',
+        '  if (data.silent) {',
+        '    // Sincronizar dados sem notificar o usuário',
+        '    event.waitUntil(',
+        '      syncDataInBackground(data.data)',
+        '    );',
+        '    return; // Não chama showNotification()',
+        '  }',
+        '',
+        '  // Push normal com notificação visual',
+        '  event.waitUntil(',
+        '    self.registration.showNotification(data.title, { body: data.body })',
+        '  );',
+        '});',
+    ], '🔇  Data Push — Sincronização Silenciosa', st)
+
+    story.append(NoteBox(
+        'Atenção: O userVisibleOnly: true na assinatura OBRIGA que toda notificação\n'
+        'recebida seja exibida ao usuário. Notificações verdadeiramente silenciosas\n'
+        'só são possíveis com userVisibleOnly: false, que está desabilitado no Chrome.',
+        'error'))
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 9
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(9, 'Deploy & Produção', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Deploy na Vercel</b>', st['h2']))
+    for item in [
+        'Configure as variáveis de ambiente no dashboard da Vercel (Settings > Environment Variables).',
+        'O sw.js deve estar na pasta <b>public/</b> para ser acessível em /sw.js.',
+        'Certifique-se que o domínio usa <b>HTTPS</b> — a Vercel fornece automaticamente.',
+        'Server Actions funcionam nativamente — nenhuma configuração extra necessária.',
+    ]:
+        story.append(bullet(item, st))
+    story.append(Spacer(1, 8))
+
+    story += code_block([
+        '// next.config.js — Configurações recomendadas para produção',
+        'const nextConfig = {',
+        '  headers: async () => [',
+        '    {',
+        '      source: "/sw.js",',
+        '      headers: [',
+        '        // Service Workers devem ter Cache-Control: no-cache',
+        '        // para que updates sejam aplicados rapidamente',
+        '        { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },',
+        '        { key: "Content-Type", value: "application/javascript; charset=utf-8" },',
+        '      ],',
+        '    },',
+        '  ],',
+        '};',
+        '',
+        'module.exports = nextConfig;',
+    ], '⚙️  next.config.js — Headers do Service Worker', st)
+
+    story.append(Paragraph('<b>Banco de Dados em Produção — PostgreSQL no Supabase</b>', st['h2']))
+    story += code_block([
+        '# 1. Criar conta em supabase.com e criar projeto',
+        '',
+        '# 2. Copiar a connection string do painel SQL',
+        '# DATABASE_URL=postgresql://postgres:[SENHA]@db.[ID].supabase.co:5432/postgres',
+        '',
+        '# 3. Rodar as migrations',
+        'npx prisma migrate deploy',
+        '',
+        '# 4. Gerar o client atualizado',
+        'npx prisma generate',
+        '',
+        '# Alternativas ao Supabase:',
+        '# - Neon (serverless PostgreSQL nativo para Vercel)',
+        '# - PlanetScale (MySQL serverless)',
+        '# - MongoDB Atlas (NoSQL)',
+        '# - Railway (PostgreSQL completo com backups)',
+    ], '🗄️  Configurando Banco de Dados em Produção', st)
+
+    story.append(Paragraph('<b>Monitoramento e Observabilidade</b>', st['h2']))
+    monitor_data = [
+        ['Métrica', 'Ferramenta', 'O que monitorar'],
+        ['Taxa de entrega', 'Logs do web-push', 'Status codes 201 (sucesso) vs 4xx/5xx'],
+        ['Assinaturas ativas', 'Dashboard próprio', 'Total, crescimento, churn diário'],
+        ['Erros de SW', 'Sentry / Datadog', 'Exceções no service worker'],
+        ['Taxa de cliques (CTR)', 'Analytics custom', 'Notificationclick events'],
+        ['Rate de opt-out', 'Eventos do browser', 'Usuários que bloquearam permissão'],
+    ]
+    mt = Table(monitor_data, colWidths=[3.5*cm, 3.5*cm, 8*cm])
+    mt.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), ACCENT),
+        ('TEXTCOLOR', (0, 0), (-1, 0), WHITE),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [WHITE, LIGHT_BG]),
+        ('GRID', (0, 0), (-1, -1), 0.4, BORDER),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(mt)
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # CAPÍTULO 10
+    # ══════════════════════════════════════════════════════════════════════════
+    story.append(SectionHeader(10, 'Troubleshooting & Checklist Final', W - 4*cm))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('<b>Erros Comuns e Soluções</b>', st['h2']))
+    errors = [
+        ('DOMException: Registration failed',
+         'O sw.js não está na pasta public/ ou contém erros de sintaxe.\n'
+         'Solução: Abra DevTools > Application > Service Workers para ver o erro exato.'),
+        ('NotAllowedError: permission denied',
+         'O usuário bloqueou ou o site não tem HTTPS.\n'
+         'Solução: Use HTTPS em produção. Em dev, localhost funciona sem HTTPS.'),
+        ('Error: 410 Gone (Push Server)',
+         'A assinatura expirou ou o usuário desinstalou o browser.\n'
+         'Solução: Remova automaticamente assinaturas com status 410 do banco.'),
+        ('Error: 401 Unauthorized (VAPID)',
+         'Chaves VAPID incorretas ou mal formatadas.\n'
+         'Solução: Regere as chaves e verifique se NEXT_PUBLIC_ está no prefixo correto.'),
+        ('SW não atualiza após mudanças',
+         'O navegador cacheia o Service Worker.\n'
+         'Solução: Use updateViaCache: "none" no register() e Cache-Control: no-cache no header.'),
+    ]
+    for error, solution in errors:
+        story.append(Paragraph(f'<b>❌ {error}</b>', st['h3']))
+        story.append(Paragraph(solution.replace('\n', ' '), st['body_sm']))
+        story.append(Spacer(1, 4))
+
+    story.append(Paragraph('<b>Checklist de Deploy em Produção</b>', st['h2']))
+    checks = [
+        '[ ] sw.js está em public/sw.js e acessível via /sw.js',
+        '[ ] HTTPS configurado no domínio de produção',
+        '[ ] Variáveis VAPID configuradas no servidor (não commitar no git)',
+        '[ ] Cache-Control: no-cache no header do /sw.js',
+        '[ ] Banco de dados com tabela de assinaturas criada (migrations rodadas)',
+        '[ ] Limpeza automática de assinaturas expiradas (status 410/404)',
+        '[ ] Rate limiting ativado para evitar spam',
+        '[ ] Testado em Chrome, Firefox e Safari (iOS 16.4+ em PWA)',
+        '[ ] TTL configurado de acordo com urgência das notificações',
+        '[ ] Logs e monitoramento de erros configurados (Sentry/Datadog)',
+        '[ ] Permissão solicitada em contexto (não na entrada do site)',
+        '[ ] Fallback para usuários sem suporte a Service Workers',
+    ]
+    for check in checks:
+        story.append(Paragraph(check, st['bullet']))
+
+    story.append(Spacer(1, 14))
+    story.append(NoteBox(
+        'Dica final: Solicite permissão de notificação APENAS após o usuário realizar\n'
+        'uma ação que demonstre intenção (ex: clicar em "Ativar notificações"). Popups\n'
+        'imediatos na entrada do site têm taxa de aceitação de apenas 3-5%.\n'
+        'Contexto correto = 30-50% de aceitação!',
+        'tip'))
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # BUILD
+    # ══════════════════════════════════════════════════════════════════════════
+    doc.build(
+        story,
+        onFirstPage=cover_page,
+        onLaterPages=normal_page,
     )
-    hero.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,-1), DARK_BG),
-        ("TOPPADDING",    (0,0), (-1,-1), 28),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 28),
-        ("LEFTPADDING",   (0,0), (-1,-1), 20),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 20),
-        ("ROUNDEDCORNERS",[8]),
-    ]))
+    print(f"PDF gerado: {path}")
 
-    badge_style = S("badge", fontName="Helvetica-Bold", fontSize=9,
-                    textColor=DARK_BG, alignment=TA_CENTER)
-    badges = Table(
-        [[Paragraph("JavaScript ES6+", badge_style),
-          Paragraph("Supabase BaaS", badge_style),
-          Paragraph("React Ready", badge_style),
-          Paragraph("Full Stack", badge_style)]],
-        colWidths=[W/4]*4
-    )
-    badges.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,-1), GREEN),
-        ("TOPPADDING",    (0,0), (-1,-1), 6),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
-        ("LEFTPADDING",   (0,0), (-1,-1), 4),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 4),
-        ("ROUNDEDCORNERS",[4]),
-    ]))
 
-    desc = Paragraph(
-        "Este guia une o poder do método <b>.map()</b> com a praticidade do "
-        "<b>Supabase</b>, mostrando desde os fundamentos até padrões avançados "
-        "usados em produção. Aprenda a transformar dados, integrar backends e "
-        "construir aplicações modernas com JavaScript.",
-        S("desc", fontName="Helvetica", fontSize=10, textColor=TEXT_MUTED,
-          leading=16, alignment=TA_CENTER, spaceAfter=6))
-
-    return [hero, spacer(0.5), badges, spacer(0.5), desc]
-
-# ── CONTENT ───────────────────────────────────────────────────────────────────
-story = []
-
-# ─ Cover
-story += cover()
-story.append(PageBreak())
-
-# ════════════════════════════════════════════════════════════════
-#  PARTE 1 — .map()
-# ════════════════════════════════════════════════════════════════
-part_banner = Table(
-    [[Paragraph("PARTE 1", S("pb", fontName="Helvetica-Bold", fontSize=10,
-                              textColor=GREEN, alignment=TA_CENTER)),
-      Paragraph("Dominando o .map() no JavaScript", S("pbt", fontName="Helvetica-Bold",
-                fontSize=16, textColor=WHITE, alignment=TA_CENTER))]],
-    colWidths=[2.5*cm, W-2.5*cm]
-)
-part_banner.setStyle(TableStyle([
-    ("BACKGROUND",    (0,0), (-1,-1), DARK_BG),
-    ("TOPPADDING",    (0,0), (-1,-1), 16),
-    ("BOTTOMPADDING", (0,0), (-1,-1), 16),
-    ("LEFTPADDING",   (0,0), (-1,-1), 12),
-    ("RIGHTPADDING",  (0,0), (-1,-1), 12),
-    ("ROUNDEDCORNERS",[6]),
-    ("LINEAFTER", (0,0), (0,-1), 1.5, GREEN),
-]))
-story.append(part_banner)
-story.append(spacer(0.4))
-
-# 1.1 Conceito
-story += section_bar("1.1", "O Conceito Fundamental")
-story.append(Paragraph(
-    "O método <b>.map()</b> é uma das ferramentas mais poderosas da programação funcional "
-    "no JavaScript. Ele permite iterar sobre um array e criar um <b>novo array</b> com base "
-    "nas transformações aplicadas — sem jamais alterar o array original.", sBody))
-story.append(spacer(0.2))
-story.append(code_block([
-    "const numeros = [1, 2, 3, 4];",
-    "",
-    "// Cria novo array com valores duplicados",
-    "const duplicados = numeros.map(n => n * 2);",
-    "",
-    "console.log(duplicados); // [2, 4, 6, 8]",
-    "console.log(numeros);    // [1, 2, 3, 4]  ← original intacto",
-], "javascript"))
-story.append(spacer(0.3))
-story.append(tip_box(
-    "Imutabilidade: .map() nunca modifica o array original. Cada chamada retorna "
-    "um array completamente novo, o que torna o código mais previsível e fácil de depurar."))
-story.append(spacer(0.3))
-
-# 1.2 Anatomia
-story += section_bar("1.2", "Anatomia da Função de Callback")
-story.append(Paragraph(
-    "A função passada ao <b>.map()</b> pode receber até três argumentos:", sBody))
-story.append(Paragraph("elemento — o item atual do array.", sBullet))
-story.append(Paragraph("índice — a posição do item (0, 1, 2 …).", sBullet))
-story.append(Paragraph("array — o array original completo.", sBullet))
-story.append(spacer(0.2))
-story.append(code_block([
-    "const frutas = ['maçã', 'banana', 'laranja'];",
-    "",
-    "const resultado = frutas.map((elemento, indice, arr) => {",
-    "  return `[${indice}] ${elemento} (total: ${arr.length})`;",
-    "});",
-    "",
-    "// ['[0] maçã (total: 3)',",
-    "//  '[1] banana (total: 3)',",
-    "//  '[2] laranja (total: 3)']",
-], "javascript"))
-story.append(spacer(0.3))
-
-# 1.3 Casos de uso
-story += section_bar("1.3", "Casos de Uso Comuns")
-
-story.append(Paragraph("Extraindo propriedades de objetos (JSON de API)", sSub))
-story.append(code_block([
-    "const produtos = [",
-    "  { id: 101, nome: 'Laptop', preco: 4500 },",
-    "  { id: 102, nome: 'Mouse',  preco: 150  },",
-    "];",
-    "",
-    "const soNomes  = produtos.map(p => p.nome);",
-    "// ['Laptop', 'Mouse']",
-    "",
-    "const comDesconto = produtos.map(p => ({",
-    "  ...p,",
-    "  preco: p.preco * 0.9,   // 10% de desconto",
-    "}));",
-], "javascript"))
-story.append(spacer(0.2))
-
-story.append(Paragraph("Formatando strings", sSub))
-story.append(code_block([
-    "const emails = ['Ana', 'Bruno', 'Carla'];",
-    "",
-    "const slugs = emails.map(nome =>",
-    "  nome.toLowerCase().replace(/\\s+/g, '-')",
-    ");",
-    "// ['ana', 'bruno', 'carla']",
-], "javascript"))
-story.append(spacer(0.2))
-
-story.append(Paragraph("Encadeamento com .filter() e .reduce()", sSub))
-story.append(code_block([
-    "const pedidos = [",
-    "  { id: 1, valor: 200, pago: true  },",
-    "  { id: 2, valor: 450, pago: false },",
-    "  { id: 3, valor: 100, pago: true  },",
-    "];",
-    "",
-    "const totalPago = pedidos",
-    "  .filter(p => p.pago)          // só pedidos pagos",
-    "  .map(p => p.valor)            // extrai valores",
-    "  .reduce((acc, v) => acc + v, 0); // soma",
-    "",
-    "console.log(totalPago); // 300",
-], "javascript"))
-story.append(spacer(0.3))
-
-# 1.4 map vs forEach
-story += section_bar("1.4", "Diferença Crucial: .map() vs .forEach()")
-story.append(Paragraph(
-    "Embora parecidos, os dois métodos têm propósitos distintos:", sBody))
-story.append(spacer(0.2))
-story.append(make_table(
-    ["Método", "Retorno", "Quando usar"],
-    [
-        [".map()", "Novo Array", "Transformar / converter dados"],
-        [".forEach()", "undefined", "Executar efeitos colaterais (log, salvar no DB, chamar API)"],
-        [".filter()", "Novo Array (subset)", "Filtrar itens por condição"],
-        [".reduce()", "Valor único", "Agregar / acumular valores"],
-    ],
-    col_widths=[2.5*cm, 3.5*cm, W-6*cm]
-))
-story.append(spacer(0.3))
-story.append(warning_box(
-    "Nunca use .map() apenas para efeitos colaterais (como console.log). "
-    "Se não precisa do array retornado, prefira .forEach()."))
-story.append(spacer(0.3))
-
-# 1.5 React
-story += section_bar("1.5", ".map() no React — Renderização de Listas")
-story.append(Paragraph(
-    "No React, o <b>.map()</b> é o padrão para renderizar listas de componentes "
-    "dinamicamente a partir de dados. Cada item deve ter uma <b>prop key</b> única "
-    "para que o React identifique mudanças de forma eficiente.", sBody))
-story.append(spacer(0.2))
-story.append(code_block([
-    "function ListaProdutos({ produtos }) {",
-    "  return (",
-    "    <ul>",
-    "      {produtos.map(produto => (",
-    "        <li key={produto.id}>",
-    "          <strong>{produto.nome}</strong>",
-    "          <span> — R$ {produto.preco.toFixed(2)}</span>",
-    "        </li>",
-    "      ))}",
-    "    </ul>",
-    "  );",
-    "}",
-], "jsx"))
-story.append(spacer(0.2))
-story.append(tip_box(
-    "Sempre use um identificador único (como id do banco) como key, nunca o "
-    "índice do array — isso evita bugs de re-renderização quando a lista muda."))
-
-story.append(PageBreak())
-
-# ════════════════════════════════════════════════════════════════
-#  PARTE 2 — Supabase
-# ════════════════════════════════════════════════════════════════
-part_banner2 = Table(
-    [[Paragraph("PARTE 2", S("pb2", fontName="Helvetica-Bold", fontSize=10,
-                              textColor=GREEN, alignment=TA_CENTER)),
-      Paragraph("Supabase com JavaScript", S("pbt2", fontName="Helvetica-Bold",
-                fontSize=16, textColor=WHITE, alignment=TA_CENTER))]],
-    colWidths=[2.5*cm, W-2.5*cm]
-)
-part_banner2.setStyle(TableStyle([
-    ("BACKGROUND",    (0,0), (-1,-1), DARK_BG),
-    ("TOPPADDING",    (0,0), (-1,-1), 16),
-    ("BOTTOMPADDING", (0,0), (-1,-1), 16),
-    ("LEFTPADDING",   (0,0), (-1,-1), 12),
-    ("RIGHTPADDING",  (0,0), (-1,-1), 12),
-    ("ROUNDEDCORNERS",[6]),
-    ("LINEAFTER", (0,0), (0,-1), 1.5, GREEN),
-]))
-story.append(part_banner2)
-story.append(spacer(0.4))
-
-story.append(Paragraph(
-    "O <b>Supabase</b> é uma plataforma Backend-as-a-Service (BaaS) open-source, "
-    "alternativa ao Firebase. Oferece banco de dados PostgreSQL, autenticação, "
-    "armazenamento de ficheiros, funções serverless e funcionalidades em tempo real — "
-    "tudo acessível via SDK JavaScript.", sBody))
-story.append(spacer(0.2))
-
-# 2.1 Instalação
-story += section_bar("2.1", "Instalação e Configuração")
-story.append(code_block(["npm install @supabase/supabase-js"], "bash"))
-story.append(spacer(0.2))
-story.append(Paragraph(
-    "Obtenha a <b>URL do projeto</b> e a <b>Chave API (anon key)</b> em "
-    "<i>Settings &gt; API</i> no dashboard do Supabase:", sBody))
-story.append(code_block([
-    "import { createClient } from '@supabase/supabase-js'",
-    "",
-    "const supabaseUrl = 'https://seu-projeto.supabase.co'",
-    "const supabaseKey = 'sua-chave-anon-aqui'",
-    "",
-    "export const supabase = createClient(supabaseUrl, supabaseKey)",
-], "javascript"))
-story.append(spacer(0.2))
-story.append(warning_box(
-    "Nunca exponha sua service_role key no frontend! A anon key é segura para uso "
-    "no cliente, pois o acesso é controlado pelas políticas RLS do banco."))
-story.append(spacer(0.3))
-
-# 2.2 CRUD
-story += section_bar("2.2", "Operações de Banco de Dados (CRUD)")
-
-story.append(Paragraph("CREATE — Inserir dados", sSub))
-story.append(code_block([
-    "const { data, error } = await supabase",
-    "  .from('usuarios')",
-    "  .insert([{ nome: 'Ana Silva', email: 'ana@email.com' }])",
-    "  .select() // retorna o registro inserido",
-    "",
-    "if (error) console.error(error);",
-    "else console.log('Inserido:', data);",
-], "javascript"))
-story.append(spacer(0.2))
-
-story.append(Paragraph("READ — Consultar dados", sSub))
-story.append(code_block([
-    "// Buscar todos",
-    "const { data } = await supabase.from('usuarios').select('*')",
-    "",
-    "// Selecionar colunas específicas",
-    "const { data } = await supabase",
-    "  .from('usuarios')",
-    "  .select('nome, email')",
-    "",
-    "// Filtros encadeados",
-    "const { data } = await supabase",
-    "  .from('produtos')",
-    "  .select('*')",
-    "  .eq('categoria', 'eletronicos')",
-    "  .gte('preco', 100)   // preco >= 100",
-    "  .order('preco', { ascending: true })",
-    "  .limit(10)",
-], "javascript"))
-story.append(spacer(0.2))
-
-story.append(Paragraph("UPDATE — Atualizar dados", sSub))
-story.append(code_block([
-    "const { data, error } = await supabase",
-    "  .from('usuarios')",
-    "  .update({ nome: 'Ana Costa' })",
-    "  .eq('id', 1)",
-    "  .select()",
-], "javascript"))
-story.append(spacer(0.2))
-
-story.append(Paragraph("DELETE — Remover dados", sSub))
-story.append(code_block([
-    "const { error } = await supabase",
-    "  .from('usuarios')",
-    "  .delete()",
-    "  .eq('id', 1)",
-], "javascript"))
-story.append(spacer(0.3))
-
-# 2.3 Auth
-story += section_bar("2.3", "Autenticação")
-story.append(code_block([
-    "// Cadastro de novo usuário",
-    "const { data, error } = await supabase.auth.signUp({",
-    "  email: 'exemplo@email.com',",
-    "  password: 'senha-segura',",
-    "})",
-    "",
-    "// Login",
-    "const { data, error } = await supabase.auth.signInWithPassword({",
-    "  email: 'exemplo@email.com',",
-    "  password: 'senha-segura',",
-    "})",
-    "",
-    "// Logout",
-    "await supabase.auth.signOut()",
-    "",
-    "// Sessão atual",
-    "const { data: { user } } = await supabase.auth.getUser()",
-], "javascript"))
-story.append(spacer(0.2))
-story.append(tip_box(
-    "O Supabase também suporta login social (Google, GitHub, etc.) via OAuth — "
-    "basta habilitar no dashboard em Authentication > Providers."))
-story.append(spacer(0.3))
-
-# 2.4 RLS
-story += section_bar("2.4", "Row Level Security (RLS)")
-story.append(Paragraph(
-    "O RLS é o sistema de segurança do Supabase que controla quais linhas cada "
-    "usuário pode ler ou modificar, diretamente no banco de dados.", sBody))
-story.append(spacer(0.2))
-story.append(code_block([
-    "-- Habilitar RLS na tabela",
-    "ALTER TABLE posts ENABLE ROW LEVEL SECURITY;",
-    "",
-    "-- Política: usuário só vê seus próprios posts",
-    "CREATE POLICY 'user_posts' ON posts",
-    "  FOR SELECT USING (auth.uid() = user_id);",
-    "",
-    "-- Política: usuário só insere posts para si mesmo",
-    "CREATE POLICY 'insert_own' ON posts",
-    "  FOR INSERT WITH CHECK (auth.uid() = user_id);",
-], "sql"))
-story.append(spacer(0.2))
-story.append(warning_box(
-    "Se suas consultas retornam listas vazias mesmo com dados na tabela, "
-    "verifique as políticas RLS no painel do Supabase."))
-story.append(spacer(0.3))
-
-# 2.5 Realtime
-story += section_bar("2.5", "Tempo Real (Realtime)")
-story.append(Paragraph(
-    "O Supabase permite escutar mudanças no banco em tempo real via WebSocket, "
-    "ideal para chats, dashboards ao vivo e notificações.", sBody))
-story.append(spacer(0.2))
-story.append(code_block([
-    "const channel = supabase",
-    "  .channel('mudancas-posts')",
-    "  .on(",
-    "    'postgres_changes',",
-    "    { event: '*', schema: 'public', table: 'posts' },",
-    "    (payload) => {",
-    "      console.log('Mudança recebida:', payload)",
-    "    }",
-    "  )",
-    "  .subscribe()",
-    "",
-    "// Cancelar escuta quando componente desmonta",
-    "// supabase.removeChannel(channel)",
-], "javascript"))
-story.append(spacer(0.3))
-
-story.append(PageBreak())
-
-# ════════════════════════════════════════════════════════════════
-#  PARTE 3 — Combinando tudo
-# ════════════════════════════════════════════════════════════════
-part_banner3 = Table(
-    [[Paragraph("PARTE 3", S("pb3", fontName="Helvetica-Bold", fontSize=10,
-                              textColor=ACCENT, alignment=TA_CENTER)),
-      Paragraph("Unindo .map() + Supabase na Prática", S("pbt3", fontName="Helvetica-Bold",
-                fontSize=15, textColor=WHITE, alignment=TA_CENTER))]],
-    colWidths=[2.5*cm, W-2.5*cm]
-)
-part_banner3.setStyle(TableStyle([
-    ("BACKGROUND",    (0,0), (-1,-1), DARK_BG),
-    ("TOPPADDING",    (0,0), (-1,-1), 16),
-    ("BOTTOMPADDING", (0,0), (-1,-1), 16),
-    ("LEFTPADDING",   (0,0), (-1,-1), 12),
-    ("RIGHTPADDING",  (0,0), (-1,-1), 12),
-    ("ROUNDEDCORNERS",[6]),
-    ("LINEAFTER", (0,0), (0,-1), 1.5, ACCENT),
-]))
-story.append(part_banner3)
-story.append(spacer(0.4))
-
-# 3.1
-story += section_bar("3.1", "Buscando e Transformando Dados da API")
-story.append(Paragraph(
-    "O padrão mais comum no desenvolvimento moderno: buscar dados do Supabase "
-    "e transformá-los com <b>.map()</b> antes de exibir.", sBody))
-story.append(spacer(0.2))
-story.append(code_block([
-    "async function getProdutosFormatados() {",
-    "  const { data, error } = await supabase",
-    "    .from('produtos')",
-    "    .select('id, nome, preco, estoque')",
-    "    .eq('ativo', true)",
-    "",
-    "  if (error) throw error;",
-    "",
-    "  // .map() transforma cada objeto para o formato da UI",
-    "  return data.map(produto => ({",
-    "    id:         produto.id,",
-    "    label:      produto.nome.toUpperCase(),",
-    "    precoLabel: `R$ ${produto.preco.toFixed(2)}`,",
-    "    disponivel: produto.estoque > 0,",
-    "    badge:      produto.estoque < 5 ? '🔥 Últimas unidades' : null,",
-    "  }));",
-    "}",
-], "javascript"))
-story.append(spacer(0.3))
-
-# 3.2
-story += section_bar("3.2", "Componente React Completo")
-story.append(Paragraph(
-    "Exemplo de componente que combina Supabase para buscar dados e "
-    "<b>.map()</b> para renderizar a lista:", sBody))
-story.append(spacer(0.2))
-story.append(code_block([
-    "import { useEffect, useState } from 'react'",
-    "import { supabase } from './supabaseClient'",
-    "",
-    "export function ListaProdutos() {",
-    "  const [produtos, setProdutos] = useState([]);",
-    "  const [loading, setLoading]   = useState(true);",
-    "",
-    "  useEffect(() => {",
-    "    async function carregar() {",
-    "      const { data } = await supabase",
-    "        .from('produtos')",
-    "        .select('*')",
-    "        .order('nome');",
-    "",
-    "      setProdutos(data ?? []);",
-    "      setLoading(false);",
-    "    }",
-    "    carregar();",
-    "  }, []);",
-    "",
-    "  if (loading) return <p>Carregando...</p>;",
-    "",
-    "  return (",
-    "    <ul>",
-    "      {produtos.map(p => (",
-    "        <li key={p.id}>",
-    "          {p.nome} — R$ {p.preco.toFixed(2)}",
-    "        </li>",
-    "      ))}",
-    "    </ul>",
-    "  );",
-    "}",
-], "jsx"))
-story.append(spacer(0.3))
-
-# 3.3 Tabela de métodos Supabase
-story += section_bar("3.3", "Referência Rápida — Métodos Supabase")
-story.append(spacer(0.15))
-story.append(make_table(
-    ["Método", "Operação SQL", "Exemplo"],
-    [
-        [".select('*')", "SELECT *", "supabase.from('t').select('*')"],
-        [".insert([...])", "INSERT INTO", ".insert([{col: val}])"],
-        [".update({...})", "UPDATE SET", ".update({col: val}).eq('id', 1)"],
-        [".delete()", "DELETE FROM", ".delete().eq('id', 1)"],
-        [".eq(col, val)", "WHERE col = val", ".eq('status', 'ativo')"],
-        [".gte(col, val)", "WHERE col >= val", ".gte('preco', 100)"],
-        [".ilike(col, '%x%')", "ILIKE (case insensitive)", ".ilike('nome', '%ana%')"],
-        [".order(col)", "ORDER BY", ".order('criado_em', {ascending: false})"],
-        [".limit(n)", "LIMIT n", ".limit(20)"],
-    ],
-    col_widths=[3.2*cm, 3.2*cm, W-6.4*cm]
-))
-story.append(spacer(0.4))
-
-# ── Final tips ────────────────────────────────────────────────────────────────
-story += section_bar("3.4", "Boas Práticas — Resumo Final")
-
-tips = [
-    ("Imutabilidade com .map()",
-     "Nunca modifique o array original. Use sempre o novo array retornado."),
-    ("Tratamento de erros no Supabase",
-     "Sempre verifique o campo error antes de usar data nas queries."),
-    ("Key no React",
-     "Use sempre o id único do banco como key ao renderizar listas com .map()."),
-    ("RLS ligado",
-     "Ative Row Level Security em todas as tabelas que contêm dados de usuários."),
-    ("Variáveis de ambiente",
-     "Guarde a URL e a anon key em variáveis de ambiente (.env), nunca no código."),
-    (".map() encadeado",
-     "Combine .filter().map() para filtrar e transformar em uma única pipeline."),
-]
-
-data_tips = [[
-    Paragraph(t, S("_tt", fontName="Helvetica-Bold", fontSize=9, textColor=DARK_BG)),
-    Paragraph(d, S("_td2", fontName="Helvetica", fontSize=9, textColor=TEXT_MAIN, leading=13))
-] for t, d in tips]
-
-tip_table = Table(data_tips, colWidths=[4.5*cm, W-4.5*cm])
-tip_table.setStyle(TableStyle([
-    ("ROWBACKGROUNDS", (0,0), (-1,-1), [LIGHT_GRAY, WHITE]),
-    ("GRID",          (0,0), (-1,-1), 0.5, BORDER),
-    ("TOPPADDING",    (0,0), (-1,-1), 8),
-    ("BOTTOMPADDING", (0,0), (-1,-1), 8),
-    ("LEFTPADDING",   (0,0), (-1,-1), 10),
-    ("RIGHTPADDING",  (0,0), (-1,-1), 10),
-    ("BACKGROUND",    (0,0), (0,-1), colors.HexColor("#F0FDF4")),
-    ("ROUNDEDCORNERS",[4]),
-]))
-story.append(tip_table)
-story.append(spacer(0.5))
-
-# Footer note
-footer_t = Table(
-    [[Paragraph(
-        "Guia Completo · JavaScript .map() + Supabase · 2025",
-        S("ft", fontName="Helvetica", fontSize=8, textColor=TEXT_MUTED, alignment=TA_CENTER)
-    )]],
-    colWidths=[W]
-)
-footer_t.setStyle(TableStyle([
-    ("TOPPADDING",    (0,0), (-1,-1), 10),
-    ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-    ("LINEABOVE",     (0,0), (-1,0), 0.5, BORDER),
-]))
-story.append(footer_t)
-
-# ── Build ─────────────────────────────────────────────────────────────────────
-doc.build(story)
-print("PDF gerado:", OUTPUT)
+build()
