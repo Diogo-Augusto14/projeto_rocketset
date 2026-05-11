@@ -13,11 +13,11 @@ export const Layout = ({ children }: LayoutProps) => {
   <body className="">
     <div className={`${inter.className} relative flex min-h-screen flex-col dark `}>
       
-      <Header />
+      
       <main className="flex-1 flex flex-col mb-1">
         {children}
       </main>
-      <Footer />
+      
     </div>
     </body>
   )
