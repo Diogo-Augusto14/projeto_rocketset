@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const Layout = ({ children }: LayoutProps) => {
   return (
-  <body className="">
+  <body className="bg-radial-[at_25%_25%] from-green-900 via-emerald-900 to-teal-900 to-75%">
     <div className={`${inter.className} relative flex min-h-screen flex-col dark `}>
       
       
