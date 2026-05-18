@@ -1,27 +1,31 @@
 import Link from "next/link";
 import { Button } from "./ui/button";
-import { useRouter } from "next/router";
 import { Logo } from "./logo";
-import { ActiveLink } from "./active-link/active-link";
 
 export const Header = () => {
-  const router = useRouter();
-
-
   return (
-    <header
-      className="bg-blue-900/10 backdrop-blur-md"
-    >
-      <div className="flex h-full items-center justify-center">
-        <div className="flex h-auto items-center justify-between">
-          <Logo />
-          
-          <nav className="flex items-center gap-6">
-            <ActiveLink href="/">Início</ActiveLink>
-            <ActiveLink href="/blog">Blog</ActiveLink>
-            <Button variant="secondary">Começar</Button>
-          </nav>
-        </div>
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/90 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Logo />
+
+        <nav className="hidden items-center gap-6 text-sm text-slate-200 md:flex">
+          <Link href="/" className="transition hover:text-white">
+            Início
+          </Link>
+          <Link href="#projects" className="transition hover:text-white">
+            Projetos
+          </Link>
+          <Link href="#contact" className="transition hover:text-white">
+            Contato
+          </Link>
+          <Link href="/blog" className="transition hover:text-white">
+            Blog
+          </Link>
+        </nav>
+
+        <Button asChild size="sm">
+          <Link href="#contact">Vamos conversar</Link>
+        </Button>
       </div>
     </header>
   );
