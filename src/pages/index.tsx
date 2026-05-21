@@ -100,9 +100,9 @@ export default function Page() {
             Next.js."
           </p>
           <div className="grid grid-cols-3 ">
-          <div className="rounded-[10px] bg-white/10 backdrop-blur-sm border border-white/10 hover:shadow-[0_0_15px_rgba(34,197,94,0.3)]  m-[9px]  transition-all duration-300 hover:bg-green-700 hover:scale-105">
+          <div >
             {" "}
-            TAILWIND{" "}
+            <span>TAILWIND</span>
           </div>
           <div className="rounded-[10px] bg-white/10 backdrop-blur-sm border border-white/10 hover:shadow-[0_0_15px_rgba(34,197,94,0.3)]  m-[9px]  text-center transition-all duration-300 hover:bg-green-700 hover:scale-105 p-1">
             {" "}
