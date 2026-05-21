@@ -1,12 +1,15 @@
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* Força o fundo escuro em toda a aplicação para evitar o branco do Shadcn */
-@layer base {
-  body {
-   background-image: linear-gradient(#037269, #000000);
-  }
+html,
+body {
+  background-color: #0f1419;
+  color: #e0e0e0;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
 }

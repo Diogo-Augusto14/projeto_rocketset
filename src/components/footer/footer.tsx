@@ -1,19 +1,22 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Logo } from "../logo";
 
 export const Footer = () => {
   return (
-    <footer className="border-tbg-gray-500/50">
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col md:flex-row justify-between ms:justify-start ">
-          <Logo />
-          <nav className="flex flex-col md:flex-row items-center gap-4 text-sm text-blue-900">
-            <Link href="/termos"className="hover:text-blue-200">termos de uso</Link>
-            <Link href="/politicas"className="hover:text-blue-200">politicas</Link>
-            <Link href="/feedback" className="hover:text-blue-200">feedback</Link>
-          </nav>
-        </div>
+    <footer className="border-t border-gray-500/20 bg-slate-950/80">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8 text-slate-400 md:flex-row md:items-center md:justify-between">
+        <Logo />
+        <nav className="flex flex-wrap items-center gap-4 text-sm text-slate-300">
+          <Link href="/termos" className="hover:text-white">
+            Termos de uso
+          </Link>
+          <Link href="/politicas" className="hover:text-white">
+            Políticas
+          </Link>
+          <Link href="/feedback" className="hover:text-white">
+            Feedback
+          </Link>
+        </nav>
       </div>
     </footer>
   );
