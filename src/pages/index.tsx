@@ -444,6 +444,33 @@ export default function Page() {
                 <p className="mt-4 text-slate-300 leading-7">{item.detalhe}</p>
               </div>
             ))}
+
+        <div className="rounded-[20px] bg-white/10 backdrop-blur-sm border border-white/10 shadow-[0_0_15px_rgba(34,197,94,0.3)] justify-center m-[5px] text-center">
+          <p className="text-white mt-4 mb-4">
+            <strong>Controle de Produção Pemill</strong>
+          </p>
+          <p className="text-white mt-4 pb-4 pl-8 text-start">
+            "Sistema interno focado na digitalização dos fluxos de fundição e
+            usinagem. Permite o acompanhamento de ordens de serviço, controle de
+            estoque de matéria-prima e monitoramento de produtividade,
+            substituindo planilhas manuais por um dashboard dinâmico em
+            Next.js."
+          </p>
+          <div className="grid grid-cols-3 ">
+          <div >
+            {" "}
+            <span>TAILWIND</span>
+          </div>
+          <div className="rounded-[10px] bg-white/10 backdrop-blur-sm border border-white/10 hover:shadow-[0_0_15px_rgba(34,197,94,0.3)]  m-[9px]  text-center transition-all duration-300 hover:bg-green-700 hover:scale-105 p-1">
+            {" "}
+            CSS{" "}
+          </div>
+          <div className="rounded-[10px] bg-white/10 backdrop-blur-sm border border-white/10 hover:shadow-[0_0_15px_rgba(34,197,94,0.3)]  m-[9px]  text-center transition-all duration-300 hover:bg-green-700 hover:scale-105 p-1">
+            {" "}
+            POSTGRESQL{" "}
+          </div>
+          <div className="rounded-[10px] bg-white/10 backdrop-blur-sm border border-white/10 hover:shadow-[0_0_15px_rgba(34,197,94,0.3)]  m-[9px]  text-center transition-all duration-300 hover:bg-green-700 hover:scale-105 col-start-2 p-1 ">
+            PRISMA ORM{" "}
           </div>
         </div>
       </section>
